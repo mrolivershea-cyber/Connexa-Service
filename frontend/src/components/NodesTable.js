@@ -529,7 +529,26 @@ auth ${node.login}
                   <td className="px-2 py-1 text-xs text-gray-700">
                     {node.provider || 'Empty'}
                   </td>
-                  <td className="px-2 py-1 text-xs text-gray-900 max-w-xs truncate" colSpan={6}>
+                  <td className="px-2 py-1 text-xs text-gray-700">
+                    {node.coordinates ? (
+                      <div className="flex items-center space-x-1">
+                        <span className="font-mono">{node.coordinates}</span>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={() => {
+                            navigator.clipboard.writeText(node.coordinates);
+                            toast.success('Координаты скопированы!');
+                          }}
+                          className="h-5 w-5 p-0"
+                          title="Копировать координаты"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : 'Empty'}
+                  </td>
+                  <td className="px-2 py-1 text-xs text-gray-900 max-w-xs truncate" colSpan={5}>
                     <EditableCell node={node} field="comment" className="max-w-xs truncate" />
                   </td>
                 </tr>
