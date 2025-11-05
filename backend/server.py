@@ -3810,18 +3810,35 @@ async def process_fraud_test_background(session_id: str, node_ids: list, db_sess
                 if not node:
                     continue
                 
-                # Обновляем прогресс
-                if session_id in progress_store:
-                    progress_store[session_id].update(i, f"Fraud проверка {node.ip} ({i}/{len(node_ids)})")
-                
                 # Выполняем проверку
                 success = await service_manager.enrich_node_fraud(node, local_db, force=True)
                 
                 if success:
                     local_db.commit()
                 
+                # Добавляем результат в progress tracker
+                result = {
+                    "node_id": node.id,
+                    "ip": node.ip,
+                    "success": success,
+                    "status": f"Fraud Score: {node.scamalytics_fraud_score}, Risk: {node.scamalytics_risk}" if success else "Fraud check failed"
+                }
+                
+                # Обновляем прогресс с результатом
+                if session_id in progress_store:
+                    progress_store[session_id].update(i, f"Fraud проверка {node.ip} ({i}/{len(node_ids)})", add_result=result)
+                
             except Exception as e:
                 logger.error(f"Fraud test error for node {node_id}: {e}")
+                # Добавляем ошибку в результаты
+                if session_id in progress_store:
+                    error_result = {
+                        "node_id": node_id,
+                        "ip": node.ip if node else "Unknown",
+                        "success": False,
+                        "status": f"Error: {str(e)}"
+                    }
+                    progress_store[session_id].update(i, f"Fraud ошибка ({i}/{len(node_ids)})", add_result=error_result)
         
         # Завершаем
         if session_id in progress_store:
