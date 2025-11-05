@@ -3708,6 +3708,8 @@ async def manual_geo_test_batch(
     
     # Запускаем в background с правильной обработкой
     task = asyncio.create_task(process_geo_test_background(session_id, node_ids, None))
+    _background_tasks.add(task)  # Сохраняем ссылку чтобы task не удалился
+    task.add_done_callback(_background_tasks.discard)  # Удаляем после завершения
     logger.info(f"🚀 Created geo test background task for session {session_id}")
     
     return {
