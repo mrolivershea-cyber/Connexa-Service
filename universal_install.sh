@@ -620,6 +620,10 @@ try:
         cursor.execute('ALTER TABLE nodes ADD COLUMN scamalytics_risk TEXT DEFAULT NULL')
         print("✅ Добавлена колонка scamalytics_risk")
     
+    if 'coordinates' not in columns:
+        cursor.execute('ALTER TABLE nodes ADD COLUMN coordinates VARCHAR(50) DEFAULT NULL')
+        print("✅ Добавлена колонка coordinates")
+    
     conn.commit()
     conn.close()
     
