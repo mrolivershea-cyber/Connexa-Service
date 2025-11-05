@@ -4013,11 +4013,11 @@ async def manual_ping_test_batch_progress(
     progress = ProgressTracker(session_id, len(nodes))
     progress.update(0, f"Начинаем ping тестирование {len(nodes)} узлов...")
     
-    # Start background batch testing
-    asyncio.create_task(process_testing_batches(
+    # Start background batch testing через threading
+    run_async_in_thread(process_testing_batches(
         session_id, [n.id for n in nodes], "ping_only", db,
-        ping_concurrency=test_request.ping_concurrency or 15,  # АГРЕССИВНО увеличено
-        speed_concurrency=test_request.speed_concurrency or 8,   # АГРЕССИВНО увеличено
+        ping_concurrency=test_request.ping_concurrency or 15,
+        speed_concurrency=test_request.speed_concurrency or 8,
         ping_timeouts=test_request.ping_timeouts or [0.8,1.2,1.6],
         speed_sample_kb=test_request.speed_sample_kb or 512,
         speed_timeout=test_request.speed_timeout or 15
