@@ -537,6 +537,10 @@ else
 ADMIN_SERVER_IP=$SERVER_IP
 DATABASE_URL=sqlite:///./connexa.db
 SECRET_KEY=$(openssl rand -hex 32)
+MONGO_URL="mongodb://localhost:27017"
+DB_NAME="test_database"
+CORS_ORIGINS="*"
+IPQS_API_KEY="vUDnFJfLgHSLD7SyxoWLGrLysWt60Saw"
 EOF
     print_success "Backend .env создан"
 fi
