@@ -99,6 +99,20 @@ def progress_increment(session_id: str, current_task: str = "", add_result: dict
     new_val = min(tracker.total_items, (tracker.processed_items or 0) + 1)
     tracker.update(new_val, current_task, add_result)
 
+def run_async_in_thread(coro):
+    """Helper для запуска async функций в отдельном потоке с новым event loop"""
+    def thread_target():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(coro)
+        finally:
+            loop.close()
+    
+    thread = threading.Thread(target=thread_target, daemon=True)
+    thread.start()
+    return thread
+
 async def cleanup_stuck_nodes():
     """Clean up nodes stuck in 'checking' status on startup"""
     try:
