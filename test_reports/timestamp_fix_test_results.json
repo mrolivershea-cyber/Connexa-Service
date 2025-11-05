@@ -1,0 +1,57 @@
+{
+  "timestamp": "2025-10-01T08:20:36.823719",
+  "total_tests": 8,
+  "passed_tests": 5,
+  "success_rate": 62.5,
+  "test_details": [
+    {
+      "test": "Admin Login",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "Get Current User",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "Timestamp Fix - Create Node",
+      "success": true,
+      "details": "\u2705 NEW NODE TIMESTAMP CORRECT: last_update=2025-10-01T08:20:22.661405, time_diff=0.0s",
+      "response_data": null
+    },
+    {
+      "test": "Timestamp Fix - Import Nodes",
+      "success": true,
+      "details": "\u2705 IMPORT TIMESTAMPS CORRECT: Node1: \u2705 0.1s, Node2: \u2705 0.1s",
+      "response_data": null
+    },
+    {
+      "test": "Timestamp Fix - Manual Ping Test",
+      "success": false,
+      "details": "\u274c PING TEST TIMESTAMPS NOT UPDATED: Node2374: \u274c Not updated (initial: 2025-10-01T08:18:45.052094, new: 2025-10-01T08:18:45.052094), Node2375: \u274c Not updated (initial: 2025-10-01T08:18:45.052094, new: 2025-10-01T08:18:45.052094)",
+      "response_data": null
+    },
+    {
+      "test": "Timestamp Fix - Manual Speed Test",
+      "success": false,
+      "details": "\u274c SPEED TEST TIMESTAMP NOT UPDATED: initial=2025-10-01T08:18:45.052094, new=2025-10-01T08:18:45.052094",
+      "response_data": null
+    },
+    {
+      "test": "Timestamp Fix - Service Start/Stop",
+      "success": false,
+      "details": "\u274c NEITHER START NOR STOP TIMESTAMPS UPDATED",
+      "response_data": null
+    },
+    {
+      "test": "Timestamp Fix - Format Verification",
+      "success": true,
+      "details": "\u2705 TIMESTAMP FORMAT CORRECT: 2025-10-01T08:18:45.052094 (ISO format, 111.8s ago)",
+      "response_data": null
+    }
+  ],
+  "focus": "timestamp_fix_testing"
+}

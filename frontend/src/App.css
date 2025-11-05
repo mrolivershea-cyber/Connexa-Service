@@ -1,34 +1,123 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+/* Modern admin panel styles */
+.App {
+  min-height: 100vh;
+  background-color: #f8fafc;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
 }
 
-.App-link {
-    color: #61dafb;
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Smooth transitions */
+.transition-all {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Status badges with custom styles */
+.status-online {
+  background-color: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
+.status-offline {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.status-checking {
+  background-color: #fefce8;
+  color: #a16207;
+  border-color: #fef08a;
+}
+
+.status-degraded {
+  background-color: #fff7ed;
+  color: #c2410c;
+  border-color: #fed7aa;
+}
+
+.status-needs-review {
+  background-color: #f8fafc;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
+/* Table hover effects */
+.table-row:hover {
+  background-color: #f1f5f9;
+  transition: background-color 0.15s ease-in-out;
+}
+
+/* Custom button variants */
+.btn-success {
+  background-color: #22c55e;
+  color: white;
+  border-color: #22c55e;
+}
+
+.btn-success:hover {
+  background-color: #16a34a;
+  border-color: #16a34a;
+}
+
+.btn-danger {
+  background-color: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}
+
+.btn-danger:hover {
+  background-color: #dc2626;
+  border-color: #dc2626;
+}
+
+/* Loading states */
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Focus styles for accessibility */
+.focus-ring:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Custom card shadows */
+.card-hover:hover {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  transform: translateY(-1px);
+  transition: all 0.2s ease-in-out;
+}
+
+/* Responsive table styles */
+@media (max-width: 1024px) {
+  .table-responsive {
+    overflow-x: auto;
+  }
 }

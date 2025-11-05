@@ -1,0 +1,53 @@
+🚀 Starting Connexa Backend API Tests
+==================================================
+✅ Health Check: PASSED
+✅ Admin Login: PASSED
+✅ Get Current User: PASSED
+✅ Get Nodes: PASSED
+✅ Get Statistics: PASSED
+✅ Create Node: PASSED
+✅ Update Node: PASSED
+✅ Create Node with Auto Test: PASSED
+✅ Create Different Protocol Nodes: PASSED
+✅ Node Filtering: PASSED
+✅ Import Nodes (Legacy): PASSED
+
+🔍 Testing Enhanced Import API with Universal Parser...
+✅ Enhanced Import Format 1: PASSED
+✅ Enhanced Import Format 2: PASSED
+✅ Enhanced Import Format 3: PASSED
+✅ Enhanced Import Format 4: PASSED
+✅ Enhanced Import Format 5: PASSED
+✅ Enhanced Import Format 6: PASSED
+
+🔄 Testing Deduplication and Normalization...
+✅ Deduplication Logic: PASSED
+✅ Country/State Normalization: PASSED
+
+⚠️ Testing Format Error API...
+✅ Get Format Errors: PASSED
+✅ Clear Format Errors: PASSED
+✅ Mixed Format Import: PASSED
+✅ Get Nodes: PASSED
+✅ Export Nodes: PASSED
+✅ Start Services: PASSED
+✅ Service Status: PASSED
+✅ Stop Services: PASSED
+✅ Single Node Service Start: PASSED
+✅ Single Node Service Stop: PASSED
+✅ Ping Test: PASSED
+✅ Speed Test: PASSED
+✅ Combined Test: PASSED
+✅ Single Node Test: PASSED
+✅ Delete Node: PASSED
+✅ Bulk Delete Nodes: PASSED
+✅ Autocomplete Countries: PASSED
+✅ Autocomplete States: PASSED
+✅ Autocomplete Cities: PASSED
+✅ Autocomplete Providers: PASSED
+✅ Change Password: PASSED
+✅ Logout: PASSED
+
+==================================================
+📊 Test Summary: 41/41 tests passed
+✅ Success Rate: 100.0%

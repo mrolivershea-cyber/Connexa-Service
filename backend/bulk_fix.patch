@@ -1,0 +1,44 @@
+--- server.py.backup
++++ server.py
+@@ -1871,8 +1871,15 @@
+     
+     # Get existing IPs in batches for performance (FIXED: process in chunks to avoid huge queries)
+     existing_ips = {}
++    is_empty_db = False
+     try:
+-        # Get all IPs to check
++        # First check if database is empty for optimization
++        total_count = db.execute(text("SELECT COUNT(*) FROM nodes")).scalar()
++        is_empty_db = (total_count == 0)
++        
++        if is_empty_db:
++            logger.info("Empty database detected - using optimized INSERT mode")
++        
+         ip_list = [node.get('ip', '').strip() for node in parsed_data.get('nodes', [])]
+         
+         if ip_list:
+@@ -1970,11 +1977,18 @@
+     # Optimized bulk insert with duplicate handling
+     if bulk_insert_data:
+         try:
+-            # Use INSERT OR REPLACE for handling duplicates properly
+-            insert_stmt = text("""
+-                INSERT OR REPLACE INTO nodes (ip, login, password, protocol, status, last_update)
+-                VALUES (:ip, :login, :password, :protocol, :status, datetime('now'))
+-            """)
++            # Use different INSERT strategy based on database state
++            if is_empty_db:
++                # Fast INSERT for empty database
++                insert_stmt = text("""
++                    INSERT INTO nodes (ip, login, password, protocol, status, last_update)
++                    VALUES (:ip, :login, :password, :protocol, :status, datetime('now'))
++                """)
++            else:
++                # INSERT OR REPLACE for handling duplicates properly
++                insert_stmt = text("""
++                    INSERT OR REPLACE INTO nodes (ip, login, password, protocol, status, last_update)
++                    VALUES (:ip, :login, :password, :protocol, :status, datetime('now'))
++                """)
+             
+             db.execute(insert_stmt, bulk_insert_data)
+             db.commit()

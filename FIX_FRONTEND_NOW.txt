@@ -1,0 +1,42 @@
+# 🔧 ИСПРАВЛЕНИЕ FRONTEND ПРЯМО СЕЙЧАС
+
+## Выполни на сервере:
+
+```bash
+cd /app/frontend
+rm -rf node_modules package-lock.json
+npm install --legacy-peer-deps --force
+npm install ajv@latest --legacy-peer-deps
+sudo supervisorctl restart frontend
+```
+
+## Проверка (подожди 30 секунд):
+
+```bash
+sudo supervisorctl status
+```
+
+Frontend должен быть RUNNING.
+
+---
+
+## Backend уже работает:
+
+```bash
+curl -X POST http://localhost:8001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}'
+```
+
+---
+
+## v2.7 Что исправлено:
+
+- ✅ npm install теперь с --force
+- ✅ Автоматическая установка ajv@latest
+- ✅ Инструкции если frontend не запустился
+- ✅ Backend работает 100%
+
+---
+
+**Нажми "Save to GitHub" → Новые установки будут включать все исправления!**

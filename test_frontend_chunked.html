@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Chunked Import</title>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        textarea { width: 100%; height: 200px; margin: 10px 0; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; }
+        .progress { background: #f0f0f0; border-radius: 4px; overflow: hidden; margin: 10px 0; }
+        .progress-bar { height: 20px; background: #007bff; transition: width 0.3s; }
+        .status { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test Chunked Import Functionality</h1>
+        
+        <div>
+            <label>Test Data:</label>
+            <textarea id="importData" placeholder="Paste large file content here (Format 7: IP:Login:Pass)">5.78.0.0:admin:admin
+5.78.0.1:admin:admin
+5.78.0.2:admin:admin
+5.78.0.3:admin:admin
+5.78.0.4:admin:admin</textarea>
+            
+            <button onclick="loadLargeFile()">Load Large Test File</button>
+            <button onclick="startImport()">Import Data</button>
+        </div>
+        
+        <div id="progressSection" class="hidden">
+            <h3>Import Progress</h3>
+            <div class="progress">
+                <div id="progressBar" class="progress-bar" style="width: 0%"></div>
+            </div>
+            <div id="progressText">Preparing...</div>
+            <div id="progressStats"></div>
+        </div>
+        
+        <div id="results"></div>
+        
+        <h3>Recent Imports</h3>
+        <div id="importHistory"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8001';
+        let currentToken = null;
+        let progressInterval = null;
+
+        // Auto-login on page load
+        window.onload = async () => {
+            await login();
+        };
+
+        async function login() {
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username: 'admin', password: 'admin'})
+                });
+                
+                const data = await response.json();
+                if (data.access_token) {
+                    currentToken = data.access_token;
+                    addStatus('Logged in successfully', 'success');
+                } else {
+                    addStatus('Login failed', 'error');
+                }
+            } catch (error) {
+                addStatus(`Login error: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadLargeFile() {
+            addStatus('Loading large test file...', 'info');
+            
+            // Create a large file content (Format 7)
+            let lines = [];
+            for (let i = 0; i < 2000; i++) {
+                const ip = `192.168.${Math.floor(i/255)}.${i%255}`;
+                lines.push(`${ip}:user${i}:pass${i}`);
+            }
+            
+            const largeContent = lines.join('\\n');
+            document.getElementById('importData').value = largeContent;
+            
+            const sizeKB = (new Blob([largeContent]).size / 1024).toFixed(1);
+            addStatus(`Generated ${lines.length} lines (${sizeKB}KB) for testing`, 'success');
+        }
+
+        async function startImport() {
+            const data = document.getElementById('importData').value.trim();
+            if (!data) {
+                addStatus('Please enter some data first', 'error');
+                return;
+            }
+
+            if (!currentToken) {
+                addStatus('Not logged in', 'error');
+                return;
+            }
+
+            const sizeKB = (new Blob([data]).size / 1024).toFixed(1);
+            addStatus(`Starting import of ${sizeKB}KB data...`, 'info');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/nodes/import`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentToken}`
+                    },
+                    body: JSON.stringify({
+                        data: data,
+                        protocol: 'pptp'
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.session_id) {
+                    // Chunked processing started
+                    addStatus(`Large file detected - chunked processing started`, 'success');
+                    addStatus(`Session: ${result.session_id}`, 'info');
+                    addStatus(`Total chunks: ${result.total_chunks}`, 'info');
+                    
+                    // Show progress section and start monitoring
+                    showProgress();
+                    startProgressMonitoring(result.session_id);
+                } else {
+                    // Regular processing completed
+                    addStatus('Regular import completed', 'success');
+                    showResults(result);
+                }
+            } catch (error) {
+                addStatus(`Import error: ${error.message}`, 'error');
+            }
+        }
+
+        function showProgress() {
+            document.getElementById('progressSection').classList.remove('hidden');
+        }
+
+        function hideProgress() {
+            document.getElementById('progressSection').classList.add('hidden');
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+        }
+
+        async function startProgressMonitoring(sessionId) {
+            const startTime = Date.now();
+            
+            progressInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/api/import/progress/${sessionId}`, {
+                        headers: {'Authorization': `Bearer ${currentToken}`}
+                    });
+                    
+                    const progress = await response.json();
+                    updateProgress(progress, startTime);
+                    
+                    if (progress.status === 'completed' || progress.status === 'failed') {
+                        hideProgress();
+                        showResults(progress);
+                        
+                        if (progress.status === 'completed') {
+                            addStatus('Chunked import completed successfully!', 'success');
+                        } else {
+                            addStatus(`Import failed: ${progress.current_operation}`, 'error');
+                        }
+                    }
+                } catch (error) {
+                    addStatus(`Progress monitoring error: ${error.message}`, 'error');
+                    hideProgress();
+                }
+            }, 2000);
+        }
+
+        function updateProgress(progress, startTime) {
+            const processed = progress.processed_chunks || 0;
+            const total = progress.total_chunks || 1;
+            const percentage = (processed / total) * 100;
+            
+            document.getElementById('progressBar').style.width = percentage + '%';
+            
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            document.getElementById('progressText').textContent = 
+                `${progress.current_operation} (${processed}/${total} chunks, ${percentage.toFixed(1)}%, ${elapsed}s)`;
+            
+            if (progress.added > 0) {
+                document.getElementById('progressStats').innerHTML = 
+                    `Added: ${progress.added}, Skipped: ${progress.skipped}, Errors: ${progress.errors}`;
+            }
+        }
+
+        function showResults(result) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <h3>Import Results</h3>
+                <div class="status success">
+                    <strong>Added:</strong> ${result.added || 0}<br>
+                    <strong>Skipped:</strong> ${result.skipped_duplicates || result.skipped || 0}<br>
+                    <strong>Replaced:</strong> ${result.replaced_old || result.replaced || 0}<br>
+                    <strong>Errors:</strong> ${result.format_errors || result.errors || 0}<br>
+                    ${result.message ? `<strong>Message:</strong> ${result.message}` : ''}
+                </div>
+            `;
+            
+            // Add to history
+            addToHistory(result);
+        }
+
+        function addToHistory(result) {
+            const historyDiv = document.getElementById('importHistory');
+            const timestamp = new Date().toLocaleString();
+            
+            const historyItem = document.createElement('div');
+            historyItem.className = 'status info';
+            historyItem.innerHTML = `
+                <strong>${timestamp}</strong> - 
+                Added: ${result.added || 0}, 
+                Skipped: ${result.skipped_duplicates || result.skipped || 0}
+                ${result.session_id ? ' (Chunked)' : ' (Regular)'}
+            `;
+            
+            historyDiv.insertBefore(historyItem, historyDiv.firstChild);
+        }
+
+        function addStatus(message, type) {
+            const resultsDiv = document.getElementById('results');
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            resultsDiv.appendChild(statusDiv);
+            
+            // Auto-scroll to bottom
+            statusDiv.scrollIntoView();
+        }
+    </script>
+</body>
+</html>

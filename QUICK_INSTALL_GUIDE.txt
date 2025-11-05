@@ -1,0 +1,112 @@
+# 🚀 БЫСТРАЯ УСТАНОВКА НА ВАШЕ СЕРВЕРЕ
+
+## Одна команда для полной установки:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/mrolivershea-cyber/10-16-2025-final-fix-auto/main/universal_install.sh | sudo bash
+```
+
+## Или по шагам:
+
+### 1. Скачать скрипт
+```bash
+wget https://raw.githubusercontent.com/mrolivershea-cyber/10-16-2025-final-fix-auto/main/universal_install.sh
+```
+
+### 2. Дать права
+```bash
+chmod +x universal_install.sh
+```
+
+### 3. Запустить
+```bash
+sudo ./universal_install.sh
+```
+
+## ⏱️ Время установки: ~5-10 минут
+
+## ✅ Что будет установлено:
+
+1. ✅ Все системные пакеты (Python, Node.js, PPTP, SQLite, Supervisor)
+2. ✅ Клон репозитория из GitHub
+3. ✅ Backend + Frontend зависимости
+4. ✅ База данных с админом (admin/admin)
+5. ✅ Автозапуск сервисов через Supervisor
+6. ✅ 30+ автоматических тестов после каждого шага
+
+## 📊 После установки:
+
+- **Админка:** http://ВАШ_IP:3000
+- **Логин:** admin / admin
+- **API:** http://ВАШ_IP:8001/docs
+
+## 🔍 Проверить статус:
+
+```bash
+sudo supervisorctl status
+```
+
+## 📝 Посмотреть логи:
+
+```bash
+tail -f /var/log/supervisor/backend.err.log
+tail -f /var/log/supervisor/frontend.err.log
+```
+
+## ⚠️ ВАЖНО:
+
+После установки ОБЯЗАТЕЛЬНО:
+1. Войти в админку (admin/admin)
+2. Сменить пароль
+3. Импортировать узлы
+4. Запустить тесты
+5. Запустить SOCKS сервисы
+
+---
+
+# 🐛 Если что-то пошло не так:
+
+## Backend не запускается:
+```bash
+tail -100 /var/log/supervisor/backend.err.log
+cd /app/backend && source venv/bin/activate && uvicorn server:app --host 0.0.0.0 --port 8001
+```
+
+## Frontend не запускается:
+```bash
+tail -100 /var/log/supervisor/frontend.err.log
+cd /app/frontend && rm -rf node_modules && yarn install
+sudo supervisorctl restart frontend
+```
+
+## Нет доступа к админке:
+```bash
+# Проверить что backend работает:
+curl http://localhost:8001/api/stats
+
+# Проверить что frontend работает:
+curl http://localhost:3000
+
+# Пересоздать админа:
+cd /app/backend && source venv/bin/activate
+python3 -c "
+from database import SessionLocal
+from models import User
+from auth import hash_password
+db = SessionLocal()
+admin = db.query(User).filter(User.username == 'admin').first()
+if admin:
+    admin.password = hash_password('admin')
+else:
+    admin = User(username='admin', password=hash_password('admin'))
+    db.add(admin)
+db.commit()
+print('✅ Admin: admin/admin')
+"
+```
+
+---
+
+# ✨ Готово!
+
+Скрипт сам всё сделает и покажет детальный отчёт в конце.

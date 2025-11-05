@@ -1,0 +1,10 @@
+5.78.0.0:admin:admin
+5.78.0.1:admin:admin
+5.78.0.2:admin:admin
+5.78.0.3:admin:admin
+5.78.0.4:admin:admin
+5.78.0.5:admin:admin
+5.78.0.6:admin:admin
+5.78.0.7:admin:admin
+5.78.0.8:admin:admin
+5.78.0.9:admin:admin

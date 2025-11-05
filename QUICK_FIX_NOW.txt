@@ -1,0 +1,43 @@
+# 🔧 БЫСТРОЕ ИСПРАВЛЕНИЕ - ПРЯМО СЕЙЧАС НА СЕРВЕРЕ
+
+## ❌ Проблема: ModuleNotFoundError: No module named 'itsdangerous'
+
+## ✅ РЕШЕНИЕ (выполни на сервере):
+
+```bash
+cd /app/backend
+venv/bin/pip install itsdangerous==2.1.2
+sudo supervisorctl restart backend
+sudo supervisorctl status
+```
+
+## 🎯 ПРОВЕРКА:
+
+```bash
+curl http://localhost:8001/api/stats
+```
+
+Должен вернуть JSON с данными.
+
+---
+
+## 📝 ЧТО ИСПРАВЛЕНО:
+
+- ✅ Добавлен `itsdangerous==2.1.2` в requirements.txt
+- ✅ Версия скрипта обновлена до v2.6
+
+---
+
+## 🚀 ДЛЯ НОВЫХ УСТАНОВОК:
+
+После того как нажмёшь "Save to GitHub", новые установки будут включать itsdangerous автоматически.
+
+```bash
+curl -sSL https://raw.githubusercontent.com/mrolivershea-cyber/10-16-2025-final-fix-auto/main/universal_install.sh | sudo bash
+```
+
+---
+
+## ⏱️ ПРЯМО СЕЙЧАС:
+
+**Выполни 3 команды выше на сервере и backend заработает!**

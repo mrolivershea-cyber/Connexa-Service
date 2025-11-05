@@ -1,0 +1,175 @@
+================================================================
+  СПИСОК ФАЙЛОВ ДЛЯ КОПИРОВАНИЯ
+================================================================
+
+Все файлы находятся в архиве: /app/pptp_socks_deployment.tar.gz
+
+Для распаковки на вашем сервере:
+  tar -xzf pptp_socks_deployment.tar.gz
+
+================================================================
+
+НОВЫЕ ФАЙЛЫ (нужно создать):
+-----------------------------
+
+1. backend/pptp_tunnel_manager.py
+   Расположение: /app/backend/pptp_tunnel_manager.py
+   Размер: ~8 KB
+   Описание: Управление PPTP туннелями
+
+2. check_pptp_env.sh
+   Расположение: /app/check_pptp_env.sh
+   Размер: ~4 KB
+   Права: chmod +x
+   Описание: Скрипт проверки окружения
+
+3. INSTALL.txt
+   Расположение: /app/INSTALL.txt
+   Описание: Инструкция по установке
+
+4. QUICKSTART.md
+   Расположение: /app/QUICKSTART.md
+   Описание: Быстрый старт
+
+5. README_DEPLOYMENT.md
+   Расположение: /app/README_DEPLOYMENT.md
+   Описание: Полная документация
+
+6. PPTP_DEPLOYMENT_GUIDE.md
+   Расположение: /app/PPTP_DEPLOYMENT_GUIDE.md
+   Описание: Техническая документация
+
+
+ИЗМЕНЕННЫЕ ФАЙЛЫ (нужно заменить):
+----------------------------------
+
+1. backend/server.py
+   Изменения:
+   - Добавлен import pptp_tunnel_manager
+   - Добавлена функция setup_pptp_environment()
+   - В /api/socks/start: создание PPTP туннеля
+   - В /api/socks/stop: разрыв PPTP туннеля
+
+2. backend/socks_server.py
+   Изменения:
+   - Добавлен import pptp_tunnel_manager
+   - Метод _connect_through_node() использует PPTP туннель
+
+3. backend/socks_monitor.py
+   Изменения:
+   - Формат прокси изменен на IP:PORT:LOGIN:PASS
+
+4. backend/.env
+   Изменения:
+   - Добавлена переменная ADMIN_SERVER_IP=vpn-tester.preview.emergentagent.com
+
+5. frontend/src/components/AdminPanel.js
+   Изменения:
+   - handleStartServices() вызывает /api/socks/start
+   - handleStopServices() вызывает /api/socks/stop
+
+
+================================================================
+СПОСОБЫ ПОЛУЧЕНИЯ ФАЙЛОВ
+================================================================
+
+СПОСОБ 1: Скачать архив (РЕКОМЕНДУЕТСЯ)
+----------------------------------------
+Файл: /app/pptp_socks_deployment.tar.gz
+Размер: 66 KB
+
+Команды:
+  # На текущем сервере
+  cd /app
+  tar -czf pptp_socks_deployment.tar.gz \
+    backend/pptp_tunnel_manager.py \
+    backend/server.py \
+    backend/socks_server.py \
+    backend/socks_monitor.py \
+    backend/.env \
+    frontend/src/components/AdminPanel.js \
+    INSTALL.txt \
+    QUICKSTART.md \
+    README_DEPLOYMENT.md \
+    PPTP_DEPLOYMENT_GUIDE.md \
+    check_pptp_env.sh
+
+  # Скопировать на ваш сервер
+  scp pptp_socks_deployment.tar.gz user@your-server:/app/
+
+  # На вашем сервере
+  cd /app
+  tar -xzf pptp_socks_deployment.tar.gz
+
+
+СПОСОБ 2: Скопировать через Git (если используете)
+---------------------------------------------------
+git add -A
+git commit -m "PPTP + SOCKS5 integration"
+git push
+
+# На вашем сервере
+git pull
+
+
+СПОСОБ 3: Ручное копирование каждого файла
+-------------------------------------------
+Используйте команды:
+
+# Новый файл
+scp /app/backend/pptp_tunnel_manager.py user@your-server:/app/backend/
+
+# Измененные файлы
+scp /app/backend/server.py user@your-server:/app/backend/
+scp /app/backend/socks_server.py user@your-server:/app/backend/
+scp /app/backend/socks_monitor.py user@your-server:/app/backend/
+scp /app/backend/.env user@your-server:/app/backend/
+scp /app/frontend/src/components/AdminPanel.js user@your-server:/app/frontend/src/components/
+
+# Документация
+scp /app/INSTALL.txt user@your-server:/app/
+scp /app/check_pptp_env.sh user@your-server:/app/
+
+
+================================================================
+ПРОВЕРКА КОПИРОВАНИЯ
+================================================================
+
+На вашем сервере выполните:
+
+# Проверить новые файлы
+ls -la /app/backend/pptp_tunnel_manager.py
+ls -la /app/check_pptp_env.sh
+ls -la /app/INSTALL.txt
+
+# Проверить измененные файлы
+grep "pptp_tunnel_manager" /app/backend/server.py
+grep "pptp_tunnel_manager" /app/backend/socks_server.py
+
+# Проверить права
+chmod +x /app/check_pptp_env.sh
+
+
+================================================================
+ПОСЛЕ КОПИРОВАНИЯ
+================================================================
+
+1. Установить системные пакеты:
+   apt-get install -y ppp pptp-linux
+
+2. Создать /dev/ppp:
+   mknod /dev/ppp c 108 0 && chmod 600 /dev/ppp
+
+3. Проверить окружение:
+   bash /app/check_pptp_env.sh
+
+4. Перезапустить сервисы:
+   sudo supervisorctl restart all
+
+
+================================================================
+ГОТОВО!
+================================================================
+
+Архив: /app/pptp_socks_deployment.tar.gz (66 KB)
+Содержит: 11 файлов (6 новых + 5 измененных)
