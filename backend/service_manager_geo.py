@@ -186,7 +186,7 @@ class ServiceManager:
         return False
     
     async def enrich_node_fraud(self, node, db_session, force=False):
-        """Обогатить узел fraud данными
+        """Обогатить узел fraud данными И координатами
         
         Args:
             node: Node объект
@@ -207,6 +207,20 @@ class ServiceManager:
                 node.scamalytics_fraud_score = result.get('fraud_score', 0)
             if force or node.scamalytics_risk is None:
                 node.scamalytics_risk = result.get('risk_level', 'low')
+            
+            # ВАЖНО: Получаем координаты через бесплатный API если их нет
+            if force or not node.coordinates:
+                logger.info(f"📍 {node.ip}: Получение координат для Fraud теста...")
+                try:
+                    from ip_geolocation import get_ip_geolocation
+                    geo_result = await get_ip_geolocation(node.ip)
+                    
+                    if geo_result.get('success') and geo_result.get('coordinates'):
+                        node.coordinates = geo_result['coordinates']
+                        logger.info(f"✅ Координаты для {node.ip}: {node.coordinates}")
+                except Exception as e:
+                    logger.debug(f"Ошибка получения координат для {node.ip}: {e}")
+            
             return True
         return False
 
