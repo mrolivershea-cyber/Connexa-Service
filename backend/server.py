@@ -3727,18 +3727,35 @@ async def process_geo_test_background(session_id: str, node_ids: list, db_sessio
                 if not node:
                     continue
                 
-                # Обновляем прогресс
-                if session_id in progress_store:
-                    progress_store[session_id].update(i, f"GEO проверка {node.ip} ({i}/{len(node_ids)})")
-                
                 # Выполняем проверку
                 success = await service_manager.enrich_node_geolocation(node, local_db, force=True)
                 
                 if success:
                     local_db.commit()
                 
+                # Добавляем результат в progress tracker
+                result = {
+                    "node_id": node.id,
+                    "ip": node.ip,
+                    "success": success,
+                    "status": f"GEO updated: {node.country}, {node.city}" if success else "GEO check failed"
+                }
+                
+                # Обновляем прогресс с результатом
+                if session_id in progress_store:
+                    progress_store[session_id].update(i, f"GEO проверка {node.ip} ({i}/{len(node_ids)})", add_result=result)
+                
             except Exception as e:
                 logger.error(f"GEO test error for node {node_id}: {e}")
+                # Добавляем ошибку в результаты
+                if session_id in progress_store:
+                    error_result = {
+                        "node_id": node_id,
+                        "ip": node.ip if node else "Unknown",
+                        "success": False,
+                        "status": f"Error: {str(e)}"
+                    }
+                    progress_store[session_id].update(i, f"GEO ошибка ({i}/{len(node_ids)})", add_result=error_result)
         
         # Завершаем
         if session_id in progress_store:
