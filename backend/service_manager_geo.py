@@ -101,7 +101,7 @@ class ServiceManager:
             logger.error(f"{fraud_service} error: {e}")
         
         # Шаг 2: Дополнить недостающие ГЕО данные через БЕСПЛАТНЫЕ сервисы
-        needs_geo = not node.city or not node.state or not node.zipcode or not node.provider
+        needs_geo = not node.city or not node.state or not node.zipcode or not node.provider or not node.coordinates
         
         if needs_geo:
             logger.info(f"📍 {node.ip}: Недостающие гео данные, запрос к бесплатным сервисам...")
@@ -123,8 +123,10 @@ class ServiceManager:
                         node.zipcode = geo_result.get('zipcode', '')
                     if not node.provider:
                         node.provider = geo_result.get('provider', '')
+                    if not node.coordinates:
+                        node.coordinates = geo_result.get('coordinates', '')
                     
-                    logger.info(f"✅ ip-api.com: city={node.city}, zip={node.zipcode}")
+                    logger.info(f"✅ ip-api.com: city={node.city}, zip={node.zipcode}, coordinates={node.coordinates}")
             except Exception as e:
                 logger.debug(f"ip-api.com error: {e}")
             
