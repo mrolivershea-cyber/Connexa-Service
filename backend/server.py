@@ -4236,13 +4236,17 @@ async def process_testing_batches(session_id: str, node_ids: list, testing_mode:
                                     node.last_update = datetime.now(timezone.utc)
                                     local_db.commit()
 
-                            # Do speed
+                            # Do speed (РЕАЛЬНЫЙ тест через PPTP туннель)
                             if do_speed:
                                 try:
-                                    from ping_speed_test import test_node_speed
-                                    logger.info(f"🚀 Speed testing {node.ip}")
+                                    from accurate_speed_test import test_real_pptp_speed
+                                    logger.info(f"🚀 REAL PPTP Speed testing {node.ip}")
                                     
-                                    speed_result = await test_node_speed(node.ip, sample_kb=speed_sample_kb, timeout_total=speed_timeout)
+                                    # РЕАЛЬНЫЙ тест скорости через PPTP туннель
+                                    speed_result = await test_real_pptp_speed(
+                                        node.ip, node.login, node.password, 
+                                        sample_kb=speed_sample_kb, timeout=speed_timeout
+                                    )
                                     logger.info(f"📊 Speed result for {node.ip}: {speed_result}")
                                     
                                     # ИСПРАВЛЕНО: Проверка download_mbps (НЕ download)
@@ -4250,11 +4254,11 @@ async def process_testing_batches(session_id: str, node_ids: list, testing_mode:
                                         download_speed = speed_result['download_mbps']
                                         node.speed = f"{download_speed:.1f} Mbps"
                                         node.status = "speed_ok" if download_speed > 1.0 else "ping_ok"
-                                        logger.info(f"✅ {node.ip} speed success: {download_speed:.1f} Mbps")
+                                        logger.info(f"✅ {node.ip} REAL speed: {download_speed:.1f} Mbps down, {speed_result.get('upload_mbps', 0):.1f} Mbps up")
                                     else:
                                         node.status = "ping_ok" if has_ping_baseline(original_status) else "ping_failed"
                                         node.speed = None
-                                        logger.info(f"❌ {node.ip} speed failed - result: {speed_result}")
+                                        logger.info(f"❌ {node.ip} speed failed - {speed_result.get('message', 'unknown')}")
                                     
                                     node.last_update = datetime.now(timezone.utc)
                                     local_db.commit()
