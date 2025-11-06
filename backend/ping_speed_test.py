@@ -567,8 +567,8 @@ file /etc/ppp/options.pptp
             stderr=subprocess.PIPE
         )
         
-        # Ждем 15 секунд
-        await asyncio.sleep(15)
+        # Ждем 25 секунд (было 15 - недостаточно для медленных серверов)
+        await asyncio.sleep(25)
         
         # Проверяем есть ли PPP interface UP
         result = subprocess.run(
