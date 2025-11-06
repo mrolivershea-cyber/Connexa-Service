@@ -154,7 +154,7 @@ const AdminPanel = () => {
     return () => clearInterval(statsInterval); // Очистка при unmount
   }, [loadStats]);
 
-  // Debounced filter effect
+  // Debounced filter effect - ИСПРАВЛЕНО: зависимость от activeFilters вместо loadNodes
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       loadNodes(1);
@@ -165,7 +165,7 @@ const AdminPanel = () => {
     }, 300); // 300ms debounce
 
     return () => clearTimeout(timeoutId);
-  }, [loadNodes]);
+  }, [activeFilters]); // ИСПРАВЛЕНО: было [loadNodes] - вызывало бесконечный цикл!
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
