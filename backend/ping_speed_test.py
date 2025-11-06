@@ -583,13 +583,11 @@ file /etc/ppp/options.pptp
         
         # Очистка
         try:
-            process.kill()
-            process.wait(timeout=2)
+            # Убиваем pppd процесс
+            subprocess.run(["pkill", "-f", f"call {peer_name}"], stderr=subprocess.DEVNULL)
+            peer_file.unlink(missing_ok=True)
         except:
             pass
-        
-        subprocess.run(["pkill", "-f", f"call {peer_name}"], stderr=subprocess.DEVNULL)
-        peer_file.unlink(missing_ok=True)
         
         await asyncio.sleep(2)  # Дать время на очистку
         
