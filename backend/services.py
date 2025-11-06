@@ -25,15 +25,33 @@ class ServiceManager:
     async def start_pptp_connection(self, node_id: int, ip: str, login: str, password: str) -> Dict:
         """Start PPTP connection for a node"""
         try:
-            # Create PPTP config
+            # Create PPTP peer config file
             config_file = PPTP_CONFIG_DIR / f"connexa-{node_id}"
+            
+            # Также добавляем creды в /etc/ppp/chap-secrets если нужно
+            chap_line = f"{login} * {password} *\n"
+            chap_secrets_path = Path("/etc/ppp/chap-secrets")
+            
+            # Проверяем есть ли уже эта запись
+            if chap_secrets_path.exists():
+                with open(chap_secrets_path, 'r') as f:
+                    existing = f.read()
+                if chap_line not in existing:
+                    with open(chap_secrets_path, 'a') as f:
+                        f.write(chap_line)
+            else:
+                with open(chap_secrets_path, 'w') as f:
+                    f.write(chap_line)
+                os.chmod(chap_secrets_path, 0o600)
+            
             config_content = f"""pty "pptp {ip} --nolaunchpppd"
 name {login}
-password {password}
-remoteip {ip}
+remotename PPTP
+require-mschap-v2
 require-mppe-128
 file /etc/ppp/options.pptp
 ipparam connexa-{node_id}
+nodefaultroute
 """
             
             with open(config_file, 'w') as f:
@@ -47,21 +65,36 @@ ipparam connexa-{node_id}
                 stderr=asyncio.subprocess.PIPE
             )
             
-            # Wait a bit for connection to establish
-            await asyncio.sleep(3)
+            # КРИТИЧНО: Ждем появления PPP interface (до 30 секунд)
+            interface_name = None
+            for attempt in range(30):
+                await asyncio.sleep(1)
+                
+                # Ищем PPP interface
+                if_name = await self._get_ppp_interface(node_id)
+                if if_name:
+                    # Проверяем что interface UP
+                    is_up = await self._check_interface_up(if_name)
+                    if is_up:
+                        interface_name = if_name
+                        break
             
-            # Check if connection is active
-            if_name = await self._get_ppp_interface(node_id)
-            if if_name:
+            if interface_name:
                 self.active_connections[node_id] = {
                     'type': 'pptp',
-                    'interface': if_name,
+                    'interface': interface_name,
                     'process': process,
                     'started_at': time.time()
                 }
-                return {'success': True, 'interface': if_name, 'message': 'PPTP connection established'}
+                return {'success': True, 'interface': interface_name, 'message': f'PPTP connected on {interface_name}'}
             else:
-                return {'success': False, 'message': 'PPTP connection failed to establish'}
+                # Не удалось - убиваем процесс
+                try:
+                    process.terminate()
+                    await process.wait()
+                except:
+                    pass
+                return {'success': False, 'message': 'PPTP interface did not come UP (timeout 30s)'}
                 
         except Exception as e:
             return {'success': False, 'message': f'PPTP start error: {str(e)}'}
