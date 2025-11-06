@@ -536,62 +536,24 @@ async def test_node_speed(ip: str, sample_kb: int = 32, timeout_total: int = 2) 
 # ==== REAL PPTP Authentication Test (WORKING VERSION) ====
 async def test_real_pptp_auth_working(ip: str, login: str, password: str, timeout: float = 20.0) -> Dict:
     """
-    РАБОЧАЯ версия PPTP авторизации (протестировано на реальных узлах)
-    Проверяет появление PPP interface UP после запуска pppd
+    РАБОЧАЯ версия через bash wrapper (избегаем zombie процессы)
     """
     import subprocess
-    from pathlib import Path
-    
-    peer_name = f"pptp_test_{ip.replace('.', '_')}"
-    peer_file = Path(f"/etc/ppp/peers/{peer_name}")
     
     try:
-        # Создаем peer файл
-        peer_content = f"""pty "pptp {ip} --nolaunchpppd"
-user {login}
-password {password}
-noauth
-mtu 1400
-nodefaultroute
-file /etc/ppp/options.pptp
-"""
-        
-        with open(peer_file, 'w') as f:
-            f.write(peer_content)
-        
-        # Запуск pppd через subprocess.run в фоне (более надежно)
         start_time = time.time()
         
-        # Используем subprocess.run с shell для надежности
-        import subprocess
-        command = f"/usr/sbin/pppd call {peer_name} debug &"
-        subprocess.run(command, shell=True, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
-        
-        # Ждем 25 секунд (было 15 - недостаточно для медленных серверов)
-        await asyncio.sleep(25)
-        
-        # Проверяем есть ли PPP interface UP
+        # Вызываем bash скрипт (синхронно)
         result = subprocess.run(
-            "ip link show | grep 'ppp.*UP'",
-            shell=True,
+            ["/usr/local/bin/test_pptp_node.sh", ip, login, password],
             capture_output=True,
-            text=True
+            text=True,
+            timeout=30
         )
         
-        has_ppp_up = 'ppp' in result.stdout and 'UP' in result.stdout
         elapsed = (time.time() - start_time) * 1000
         
-        # Очистка
-        try:
-            # Убиваем pppd процесс
-            subprocess.run(["pkill", "-f", f"call {peer_name}"], stderr=subprocess.DEVNULL)
-            peer_file.unlink(missing_ok=True)
-        except:
-            pass
-        
-        await asyncio.sleep(2)  # Дать время на очистку
-        
-        if has_ppp_up:
+        if "SUCCESS" in result.stdout:
             return {
                 "success": True,
                 "avg_time": elapsed,
@@ -600,17 +562,15 @@ file /etc/ppp/options.pptp
         else:
             return {
                 "success": False,
-                "message": "PPTP failed - no PPP interface UP"
+                "message": "PPTP auth FAILED"
             }
             
+    except subprocess.TimeoutExpired:
+        return {
+            "success": False,
+            "message": "PPTP test timeout"
+        }
     except Exception as e:
-        # Очистка при ошибке
-        try:
-            peer_file.unlink(missing_ok=True)
-            subprocess.run(["pkill", "-f", f"call {peer_name}"], stderr=subprocess.DEVNULL)
-        except:
-            pass
-        
         return {
             "success": False,
             "message": f"PPTP test error: {str(e)}"
