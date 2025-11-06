@@ -25,10 +25,10 @@ class ServiceManager:
     async def start_pptp_connection(self, node_id: int, ip: str, login: str, password: str) -> Dict:
         """Start PPTP connection for a node"""
         try:
-            # Create PPTP peer config file
+            # Create PPTP peer config file (РАБОЧАЯ КОНФИГУРАЦИЯ)
             config_file = PPTP_CONFIG_DIR / f"connexa-{node_id}"
             
-            # Также добавляем creды в /etc/ppp/chap-secrets если нужно
+            # Добавляем creды в /etc/ppp/chap-secrets
             chap_line = f"{login} * {password} *\n"
             chap_secrets_path = Path("/etc/ppp/chap-secrets")
             
@@ -41,24 +41,31 @@ class ServiceManager:
                         f.write(chap_line)
             else:
                 with open(chap_secrets_path, 'w') as f:
+                    f.write("# Secrets for authentication using CHAP\n")
+                    f.write("# client    server  secret          IP addresses\n")
                     f.write(chap_line)
                 os.chmod(chap_secrets_path, 0o600)
             
+            # РАБОЧАЯ КОНФИГУРАЦИЯ peer файла (без require-* - они в options.pptp)
             config_content = f"""pty "pptp {ip} --nolaunchpppd"
-name {login}
-remotename PPTP
-require-mschap-v2
-require-mppe-128
+user {login}
+password {password}
+noauth
+mtu 1400
+mru 1400
+nodefaultroute
+persist
+maxfail 0
+debug
 file /etc/ppp/options.pptp
 ipparam connexa-{node_id}
-nodefaultroute
 """
             
             with open(config_file, 'w') as f:
                 f.write(config_content)
             
-            # Start PPTP connection
-            cmd = ["pppd", "call", f"connexa-{node_id}"]
+            # Start PPTP connection в фоне
+            cmd = ["pppd", "call", f"connexa-{node_id}", "debug"]
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
