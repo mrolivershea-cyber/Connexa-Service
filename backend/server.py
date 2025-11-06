@@ -546,6 +546,9 @@ async def change_password(
         )
     
     current_user.password = hash_password(change_request.new_password)
+    # Снимаем флаг принудительной смены после первой смены пароля
+    if hasattr(current_user, 'must_change_password'):
+        current_user.must_change_password = False
     db.commit()
     
     return {"message": "Password changed successfully"}
