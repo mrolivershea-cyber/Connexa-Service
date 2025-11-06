@@ -231,6 +231,7 @@ apt-get install -y -qq \
     python3-venv \
     ppp \
     pptp-linux \
+    dante-server \
     sqlite3 \
     curl \
     wget \
