@@ -532,6 +532,93 @@ async def test_node_speed(ip: str, sample_kb: int = 32, timeout_total: int = 2) 
         "message": "Speed test failed - network unreachable or too slow",
     }
 
+
+# ==== REAL PPTP Authentication Test (WORKING VERSION) ====
+async def test_real_pptp_auth_working(ip: str, login: str, password: str, timeout: float = 20.0) -> Dict:
+    """
+    РАБОЧАЯ версия PPTP авторизации (протестировано на реальных узлах)
+    Проверяет появление PPP interface UP после запуска pppd
+    """
+    import subprocess
+    from pathlib import Path
+    
+    peer_name = f"pptp_test_{ip.replace('.', '_')}"
+    peer_file = Path(f"/etc/ppp/peers/{peer_name}")
+    
+    try:
+        # Создаем peer файл
+        peer_content = f"""pty "pptp {ip} --nolaunchpppd"
+user {login}
+password {password}
+noauth
+mtu 1400
+nodefaultroute
+file /etc/ppp/options.pptp
+"""
+        
+        with open(peer_file, 'w') as f:
+            f.write(peer_content)
+        
+        # Запуск pppd в фоне
+        start_time = time.time()
+        process = subprocess.Popen(
+            ["pppd", "call", peer_name, "debug"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        
+        # Ждем 15 секунд
+        await asyncio.sleep(15)
+        
+        # Проверяем есть ли PPP interface UP
+        result = subprocess.run(
+            "ip link show | grep 'ppp.*UP'",
+            shell=True,
+            capture_output=True,
+            text=True
+        )
+        
+        has_ppp_up = 'ppp' in result.stdout and 'UP' in result.stdout
+        elapsed = (time.time() - start_time) * 1000
+        
+        # Очистка
+        try:
+            process.kill()
+            process.wait(timeout=2)
+        except:
+            pass
+        
+        subprocess.run(["pkill", "-f", f"call {peer_name}"], stderr=subprocess.DEVNULL)
+        peer_file.unlink(missing_ok=True)
+        
+        await asyncio.sleep(2)  # Дать время на очистку
+        
+        if has_ppp_up:
+            return {
+                "success": True,
+                "avg_time": elapsed,
+                "message": f"PPTP auth SUCCESS in {elapsed:.0f}ms"
+            }
+        else:
+            return {
+                "success": False,
+                "message": "PPTP failed - no PPP interface UP"
+            }
+            
+    except Exception as e:
+        # Очистка при ошибке
+        try:
+            peer_file.unlink(missing_ok=True)
+            subprocess.run(["pkill", "-f", f"call {peer_name}"], stderr=subprocess.DEVNULL)
+        except:
+            pass
+        
+        return {
+            "success": False,
+            "message": f"PPTP test error: {str(e)}"
+        }
+
+
 async def test_pptp_connection(ip: str, login: str, password: str, skip_ping_check: bool = False) -> Dict:
     """Simulated PPTP connection"""
     return await PPTPTester.pptp_connection_test(ip, login, password, skip_ping_check)
