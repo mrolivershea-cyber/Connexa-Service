@@ -158,38 +158,48 @@ kill_process_hard "dpkg"
 kill_process_hard "unattended-upgr"
 kill_process_hard "packagekitd"
 
-# Подождать
-sleep 3
+# АГРЕССИВНО убить ВСЕ apt/dpkg процессы
+pkill -9 -f "apt-get" 2>/dev/null || true
+pkill -9 -f "dpkg" 2>/dev/null || true
+pkill -9 -f "unattended" 2>/dev/null || true
 
-# Удалить все lock файлы
+# Подождать
+sleep 5
+
+# Удалить все lock файлы НЕСКОЛЬКО РАЗ
 print_info "Удаление всех lock файлов..."
-rm -f /var/lib/dpkg/lock-frontend 2>/dev/null || true
-rm -f /var/lib/dpkg/lock 2>/dev/null || true
-rm -f /var/lib/apt/lists/lock 2>/dev/null || true
-rm -f /var/cache/apt/archives/lock 2>/dev/null || true
-rm -f /var/lib/dpkg/lock-backend 2>/dev/null || true
+for i in {1..3}; do
+    rm -f /var/lib/dpkg/lock-frontend 2>/dev/null || true
+    rm -f /var/lib/dpkg/lock 2>/dev/null || true
+    rm -f /var/lib/apt/lists/lock 2>/dev/null || true
+    rm -f /var/cache/apt/archives/lock 2>/dev/null || true
+    rm -f /var/lib/dpkg/lock-backend 2>/dev/null || true
+    sleep 1
+done
 
 # Ещё одна проверка и ожидание
-sleep 3
+sleep 5
 
 # Исправить dpkg И ДОЖДАТЬСЯ ЗАВЕРШЕНИЯ
 print_info "Восстановление состояния dpkg (может занять 1-2 минуты)..."
-DEBIAN_FRONTEND=noninteractive dpkg --configure -a 2>&1 | tee /tmp/dpkg_configure.log | tail -5
+DEBIAN_FRONTEND=noninteractive dpkg --configure -a 2>&1 > /tmp/dpkg_configure.log || true
 
 # Ждём завершения dpkg
 print_info "Ожидание полного завершения dpkg..."
-sleep 5
+sleep 10
 
-# Проверка что dpkg завершился
+# Убить dpkg если завис
 if pgrep -x "dpkg" > /dev/null; then
-    print_warning "dpkg всё ещё работает, ждём ещё 10 секунд..."
-    sleep 10
+    print_warning "dpkg завис, убиваем принудительно..."
+    pkill -9 dpkg
+    sleep 5
 fi
 
 # Финальная очистка lock файлов после dpkg
 print_info "Финальная очистка lock файлов..."
 rm -f /var/lib/dpkg/lock-frontend 2>/dev/null || true
 rm -f /var/lib/dpkg/lock 2>/dev/null || true
+rm -f /var/lib/dpkg/lock-backend 2>/dev/null || true
 
 print_success "Система готова к установке"
 
