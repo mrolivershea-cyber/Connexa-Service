@@ -23,7 +23,7 @@ NC='\033[0m' # No Color
 
 # Глобальные переменные
 INSTALL_DIR="/app"
-REPO_URL="https://github.com/mrolivershea-cyber/Connexa-.git"
+REPO_URL="https://github.com/mrolivershea-cyber/Connexa-1.git"
 BRANCH="main"
 ERRORS_FOUND=0
 WARNINGS_FOUND=0
