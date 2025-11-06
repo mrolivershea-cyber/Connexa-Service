@@ -4233,43 +4233,27 @@ async def process_testing_batches(session_id: str, node_ids: list, testing_mode:
                                     node.last_update = datetime.now(timezone.utc)
                                     local_db.commit()
 
-                            # Do speed (Упрощенный - сначала Ping OK, потом Speed через TCP)
+                            # Do speed
                             if do_speed:
                                 try:
-                                    # Сначала проверяем что PPTP авторизация работает
-                                    from ping_speed_test import test_real_pptp_auth
-                                    auth_result = await test_real_pptp_auth(node.ip, node.login, node.password, timeout=15.0)
+                                    from ping_speed_test import test_node_speed
+                                    logger.info(f"🚀 Speed testing {node.ip}")
                                     
-                                    if not auth_result.get('success'):
-                                        # PPTP auth не прошла - нельзя тестировать скорость
-                                        node.status = "ping_failed"
-                                        node.speed = None
-                                        logger.info(f"❌ {node.ip} PPTP auth failed - skipping speed test")
-                                        node.last_update = datetime.now(timezone.utc)
-                                        local_db.commit()
+                                    speed_result = await test_node_speed(node.ip, sample_kb=speed_sample_kb, timeout_total=speed_timeout)
+                                    logger.info(f"📊 Speed result for {node.ip}: {speed_result}")
+                                    
+                                    if speed_result.get('success') and speed_result.get('download_mbps'):
+                                        download_speed = speed_result['download_mbps']
+                                        node.speed = f"{download_speed:.1f} Mbps"
+                                        node.status = "speed_ok" if download_speed > 1.0 else "ping_ok"
+                                        logger.info(f"✅ {node.ip} speed success: {download_speed:.1f} Mbps")
                                     else:
-                                        # PPTP OK - тестируем скорость
-                                        from accurate_speed_test import test_node_accurate_speed
-                                        logger.info(f"🚀 Speed testing {node.ip} (PPTP auth OK)")
-                                        
-                                        speed_result = await test_node_accurate_speed(
-                                            node.ip, node.login, node.password,
-                                            sample_kb=speed_sample_kb, timeout=speed_timeout
-                                        )
-                                        logger.info(f"📊 Speed result for {node.ip}: {speed_result}")
-                                        
-                                        if speed_result.get('success') and speed_result.get('download_mbps'):
-                                            download_speed = speed_result['download_mbps']
-                                            node.speed = f"{download_speed:.1f} Mbps"
-                                            node.status = "speed_ok" if download_speed > 1.0 else "ping_ok"
-                                            logger.info(f"✅ {node.ip} speed: {download_speed:.1f} Mbps (PPTP auth confirmed)")
-                                        else:
-                                            node.status = "ping_ok"  # PPTP работает, но скорость не измерилась
-                                            node.speed = None
-                                            logger.info(f"⚠️ {node.ip} speed measurement failed, but PPTP auth OK")
-                                        
-                                        node.last_update = datetime.now(timezone.utc)
-                                        local_db.commit()
+                                        node.status = "ping_ok" if has_ping_baseline(original_status) else "ping_failed"
+                                        node.speed = None
+                                        logger.info(f"❌ {node.ip} speed failed - result: {speed_result}")
+                                    
+                                    node.last_update = datetime.now(timezone.utc)
+                                    local_db.commit()
                                 except Exception as speed_error:
                                     logger.error(f"❌ Speed test error for {node.ip}: {speed_error}")
                                     node.status = "ping_ok" if has_ping_baseline(original_status) else "ping_failed"
