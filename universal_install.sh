@@ -362,6 +362,47 @@ ls -la /dev/ppp
 test_step "/dev/ppp существует" "[ -e /dev/ppp ]" "critical"
 test_step "/dev/ppp доступен для записи" "[ -w /dev/ppp ]" "warning"
 
+# Создание bash wrapper для PPTP тестирования
+print_info "Создание test_pptp_node.sh wrapper..."
+cat > /usr/local/bin/test_pptp_node.sh << 'WRAPPER_SCRIPT'
+#!/bin/bash
+IP=$1
+LOGIN=$2
+PASSWORD=$3
+PEER_NAME="pptp_test_${IP//./_}"
+LOG_FILE="/tmp/pptp_test_${IP//./_}.log"
+
+echo "$(date): Testing $IP" > $LOG_FILE
+
+cat > /etc/ppp/peers/$PEER_NAME << EOF
+pty "pptp $IP --nolaunchpppd"
+user $LOGIN
+password $PASSWORD
+noauth
+mtu 1400
+nodefaultroute
+file /etc/ppp/options.pptp
+EOF
+
+/usr/sbin/pppd call $PEER_NAME debug >> $LOG_FILE 2>&1 &
+PPPD_PID=$!
+
+sleep 25
+
+if ip link show | grep -q "ppp.*UP"; then
+    echo "SUCCESS"
+else
+    echo "FAILED"
+fi
+
+kill $PPPD_PID 2>/dev/null
+pkill -f "call $PEER_NAME" 2>/dev/null
+rm -f /etc/ppp/peers/$PEER_NAME
+WRAPPER_SCRIPT
+
+chmod +x /usr/local/bin/test_pptp_node.sh
+print_success "test_pptp_node.sh создан"
+
 ##########################################################################################
 # ШАГ 5: НАСТРОЙКА PPTP КОНФИГУРАЦИИ
 ##########################################################################################
