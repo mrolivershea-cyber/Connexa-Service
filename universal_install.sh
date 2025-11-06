@@ -620,6 +620,19 @@ try:
     conn.commit()
     conn.close()
     
+    # Миграция: добавить must_change_password в users
+    conn_users = sqlite3.connect('/app/backend/connexa.db')
+    cursor_users = conn_users.cursor()
+    cursor_users.execute("PRAGMA table_info(users)")
+    user_columns = [col[1] for col in cursor_users.fetchall()]
+    
+    if 'must_change_password' not in user_columns:
+        cursor_users.execute('ALTER TABLE users ADD COLUMN must_change_password BOOLEAN DEFAULT 1')
+        print("✅ Добавлена колонка must_change_password в users")
+    
+    conn_users.commit()
+    conn_users.close()
+    
     # Создать админа по умолчанию
     db = SessionLocal()
     
