@@ -251,6 +251,22 @@ socks pass {{
         except:
             return None
     
+    async def _check_interface_up(self, interface: str) -> bool:
+        """Проверка что PPP interface UP и POINTOPOINT"""
+        try:
+            result = await asyncio.create_subprocess_exec(
+                "ip", "link", "show", interface,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, _ = await result.communicate()
+            output = stdout.decode()
+            
+            # Проверяем флаги UP и POINTOPOINT
+            return 'UP' in output and 'POINTOPOINT' in output
+        except:
+            return False
+    
     async def _get_interface_ip(self, interface: str) -> Optional[str]:
         """Get IP address of interface"""
         try:
