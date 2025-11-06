@@ -559,13 +559,13 @@ file /etc/ppp/options.pptp
         with open(peer_file, 'w') as f:
             f.write(peer_content)
         
-        # Запуск pppd в фоне (ПОЛНЫЙ ПУТЬ!)
+        # Запуск pppd через subprocess.run в фоне (более надежно)
         start_time = time.time()
-        process = subprocess.Popen(
-            ["/usr/sbin/pppd", "call", peer_name, "debug"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
+        
+        # Используем subprocess.run с shell для надежности
+        import subprocess
+        command = f"/usr/sbin/pppd call {peer_name} debug &"
+        subprocess.run(command, shell=True, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
         
         # Ждем 25 секунд (было 15 - недостаточно для медленных серверов)
         await asyncio.sleep(25)
