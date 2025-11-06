@@ -130,6 +130,15 @@ const AdminPanel = () => {
     loadStats();
   }, []);
 
+  // Проверка принудительной смены пароля при первом входе
+  useEffect(() => {
+    if (user && user.must_change_password) {
+      setMustChangePassword(true);
+      setShowOptionsModal(true);
+      toast.warning('⚠️ Необходимо сменить пароль при первом входе!', { duration: 5000 });
+    }
+  }, [user]);
+
   // ИСПРАВЛЕНО: Автообновление статистики в реальном времени
   useEffect(() => {
     const statsInterval = setInterval(() => {
