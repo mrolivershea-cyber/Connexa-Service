@@ -334,9 +334,15 @@ if [ -e /dev/ppp ]; then
 else
     print_info "Создание /dev/ppp..."
     mknod /dev/ppp c 108 0
-    chmod 600 /dev/ppp
-    print_success "/dev/ppp создан"
 fi
+
+# КРИТИЧНО: Права 666 для работы от любого пользователя
+chmod 666 /dev/ppp
+print_success "/dev/ppp настроен (права 666)"
+
+# Setuid для pppd
+chmod u+s /usr/sbin/pppd 2>/dev/null || true
+print_info "pppd setuid установлен"
 
 print_info "Права на /dev/ppp:"
 ls -la /dev/ppp
