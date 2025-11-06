@@ -552,7 +552,11 @@ async def change_password(
 
 @api_router.get("/auth/me")
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
-    return {"username": current_user.username, "id": current_user.id}
+    return {
+        "username": current_user.username, 
+        "id": current_user.id,
+        "must_change_password": current_user.must_change_password if hasattr(current_user, 'must_change_password') else False
+    }
 
 # Node CRUD Routes
 def apply_node_filters_kwargs(query, **filters):
