@@ -4222,15 +4222,16 @@ async def process_testing_batches(session_id: str, node_ids: list, testing_mode:
                                         node.status = "ping_ok"
                                         logger.info(f"✅ {node.ip} ping success: {ping_result.get('avg_time', 0)}ms")
                                         
-                                        # УМНАЯ ЛОГИКА: Один запрос для гео + fraud если IPQualityScore
-                                        try:
-                                            from service_manager_geo import service_manager
-                                            complete_success = await service_manager.enrich_node_complete(node, local_db)
-                                            if complete_success:
-                                                logger.info(f"✅ Node enriched: {node.ip}")
-                                                local_db.commit()
-                                        except Exception as enrich_error:
-                                            logger.warning(f"Enrichment error for {node.ip}: {enrich_error}")
+                                        # ОТКЛЮЧЕНО: Автоматическая GEO + Fraud проверка
+                                        # Пользователь будет запускать вручную через Testing Modal
+                                        # try:
+                                        #     from service_manager_geo import service_manager
+                                        #     complete_success = await service_manager.enrich_node_complete(node, local_db)
+                                        #     if complete_success:
+                                        #         logger.info(f"✅ Node enriched: {node.ip}")
+                                        #         local_db.commit()
+                                        # except Exception as enrich_error:
+                                        #     logger.warning(f"Enrichment error for {node.ip}: {enrich_error}")
                                     else:
                                         node.status = original_status if has_ping_baseline(original_status) else "ping_failed"
                                         logger.info(f"❌ {node.ip} ping failed: {ping_result.get('message', 'timeout')}")
