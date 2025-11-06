@@ -98,7 +98,8 @@ const UnifiedImportModal = ({ isOpen, onClose, onComplete }) => {
           // Show report if it's within 30 minutes
           if (reportData.timestamp > Date.now() - 30 * 60 * 1000) {
             console.log('Restoring last import report');
-            setPreviewResult(reportData.report);
+            // Восстанавливаем только статистику, БЕЗ больших данных
+            setPreviewResult(reportData);
             setShowPreview(true);
             toast.info('📊 Показываю результаты последнего импорта');
             return; // Don't reset states
@@ -106,6 +107,7 @@ const UnifiedImportModal = ({ isOpen, onClose, onComplete }) => {
             localStorage.removeItem('lastImportReport');
           }
         } catch (e) {
+          console.warn('Error parsing lastImportReport:', e.message);
           localStorage.removeItem('lastImportReport');
         }
       }
