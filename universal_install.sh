@@ -370,6 +370,21 @@ IP=$1
 LOGIN=$2
 PASSWORD=$3
 PEER_NAME="pptp_test_${IP//./_}"
+LOG_FILE="/var/log/pptp_${IP//./_}.log"
+
+# Debug логирование
+echo "$(date) RUN: pppd call $PEER_NAME user=$LOGIN" >> /var/log/pingok_debug.log
+
+# Убиваем старые
+pkill -f "call $PEER_NAME" 2>/dev/null
+sleep 1
+
+# Очистка старых интерфейсов
+for ppp in /sys/class/net/ppp*; do
+    if [ -e "$ppp" ]; then
+        ip link delete $(basename $ppp) 2>/dev/null || true
+    fi
+done
 
 # Создаем peer
 cat > /etc/ppp/peers/$PEER_NAME << EOF
@@ -381,30 +396,33 @@ mtu 1400
 nodefaultroute
 file /etc/ppp/options.pptp
 ipparam $PEER_NAME
+debug
+logfile $LOG_FILE
 EOF
+
+# Добавляем в chap-secrets
+echo "$LOGIN * $PASSWORD *" >> /etc/ppp/chap-secrets
 
 # Запускаем pppd
 /usr/sbin/pppd call $PEER_NAME debug &
 PPPD_PID=$!
 
-# Ждем 25 секунд
+# Ждем
 sleep 25
 
-# ИСПРАВЛЕНО: Проверяем конкретный interface для этого peer
-PPP_IFACE=""
-for iface in /sys/class/net/ppp*; do
-    if [ -e "$iface" ]; then
-        iface_name=$(basename $iface)
-        if ip link show $iface_name | grep -q "UP"; then
-            if pgrep -f "call $PEER_NAME" > /dev/null; then
-                PPP_IFACE=$iface_name
-                break
-            fi
-        fi
+# ИСПРАВЛЕНО: Проверяем CHAP логи, а не ip link!
+SUCCESS=false
+if [ -f "$LOG_FILE" ]; then
+    if grep -q "CHAP authentication succeeded" "$LOG_FILE" && grep -q "local.*IP address" "$LOG_FILE"; then
+        SUCCESS=true
     fi
-done
+elif [ -f "/var/log/pppd.log" ]; then
+    if grep -q "CHAP authentication succeeded" "/var/log/pppd.log" && grep -q "local.*IP address" "/var/log/pppd.log"; then
+        SUCCESS=true
+    fi
+fi
 
-if [ -n "$PPP_IFACE" ]; then
+if [ "$SUCCESS" = "true" ]; then
     echo "SUCCESS"
 else
     echo "FAILED"
@@ -414,10 +432,13 @@ fi
 kill $PPPD_PID 2>/dev/null
 pkill -f "call $PEER_NAME" 2>/dev/null
 rm -f /etc/ppp/peers/$PEER_NAME
+rm -f "$LOG_FILE"
 
-if [ -n "$PPP_IFACE" ]; then
-    ip link delete $PPP_IFACE 2>/dev/null || true
-fi
+for ppp in /sys/class/net/ppp*; do
+    if [ -e "$ppp" ]; then
+        ip link delete $(basename $ppp) 2>/dev/null || true
+    fi
+done
 WRAPPER_SCRIPT
 
 chmod +x /usr/local/bin/test_pptp_node.sh
