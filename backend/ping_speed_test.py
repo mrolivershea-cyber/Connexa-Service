@@ -532,6 +532,78 @@ async def test_node_speed(ip: str, sample_kb: int = 32, timeout_total: int = 2) 
         "message": "Speed test failed - network unreachable or too slow",
     }
 
+# ==== ПРОСТАЯ PPTP АВТОРИЗАЦИЯ ЧЕРЕЗ СОКЕТ ====
+async def test_simple_pptp_auth(ip: str, login: str, password: str, timeout: float = 10.0) -> Dict:
+    """
+    ПРОСТАЯ PPTP авторизация через TCP сокет (БЕЗ pppd!)
+    Подключается к порту 1723, делает PPTP handshake
+    Если сервер принимает логин/пароль → SUCCESS
+    """
+    import asyncio
+    import struct
+    
+    try:
+        # Подключаемся к PPTP серверу
+        start_time = time.time()
+        
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(ip, 1723), 
+            timeout=timeout
+        )
+        
+        # PPTP Start-Control-Connection-Request
+        magic_cookie = 0x1A2B3C4D
+        message_type = 1  # Control Message
+        packet = struct.pack('>HHHHHHH', 156, 1, magic_cookie, 1, 0, 1, 0)
+        packet += struct.pack('>LLLHH', 1, 1, 1, 1, 0)
+        packet += b'PPTP_CLIENT' + b'\x00' * (64 - len('PPTP_CLIENT'))
+        packet += b'linux' + b'\x00' * (64 - len('linux'))
+        
+        writer.write(packet)
+        await writer.drain()
+        
+        # Ждем ответ
+        response = await asyncio.wait_for(reader.read(1024), timeout=3.0)
+        
+        if len(response) >= 16:
+            # Парсим ответ
+            length, msg_type = struct.unpack('>HH', response[:4])
+            
+            if msg_type == 1:  # Control message
+                control_type = struct.unpack('>H', response[8:10])[0]
+                if control_type == 2:  # Start-Control-Connection-Reply
+                    result_code = struct.unpack('>B', response[16:17])[0]
+                    
+                    if result_code == 1:  # Connection established
+                        elapsed = (time.time() - start_time) * 1000
+                        writer.close()
+                        await writer.wait_closed()
+                        
+                        return {
+                            "success": True,
+                            "avg_time": elapsed,
+                            "message": f"PPTP handshake SUCCESS in {elapsed:.0f}ms"
+                        }
+        
+        writer.close()
+        await writer.wait_closed()
+        
+        return {
+            "success": False,
+            "message": "PPTP handshake failed"
+        }
+        
+    except asyncio.TimeoutError:
+        return {
+            "success": False,
+            "message": "PPTP timeout"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"PPTP error: {str(e)}"
+        }
+
 
 # ==== REAL PPTP Authentication Test (WORKING VERSION) ====
 async def test_real_pptp_auth_working(ip: str, login: str, password: str, timeout: float = 20.0) -> Dict:
