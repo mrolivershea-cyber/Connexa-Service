@@ -539,6 +539,9 @@ async def test_real_pptp_auth_working(ip: str, login: str, password: str, timeou
     РАБОЧАЯ версия через bash wrapper (избегаем zombie процессы)
     """
     import subprocess
+    import logging
+    
+    logger = logging.getLogger(__name__)
     
     try:
         start_time = time.time()
@@ -552,6 +555,13 @@ async def test_real_pptp_auth_working(ip: str, login: str, password: str, timeou
         )
         
         elapsed = (time.time() - start_time) * 1000
+        
+        # ЛОГИРОВАНИЕ ДЛЯ ОТЛАДКИ
+        logger.info(f"🔍 PPTP script result for {ip}:")
+        logger.info(f"   Return code: {result.returncode}")
+        logger.info(f"   STDOUT: '{result.stdout}'")
+        logger.info(f"   STDERR: '{result.stderr}'")
+        logger.info(f"   'SUCCESS' in stdout: {'SUCCESS' in result.stdout}")
         
         if "SUCCESS" in result.stdout:
             return {
