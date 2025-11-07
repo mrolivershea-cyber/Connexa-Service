@@ -152,11 +152,33 @@ kill_process_hard() {
 
 # Убить все процессы которые могут блокировать dpkg
 print_info "Остановка конфликтующих процессов..."
-kill_process_hard "apt-get"
-kill_process_hard "apt"
-kill_process_hard "dpkg"
-kill_process_hard "unattended-upgr"
-kill_process_hard "packagekitd"
+
+# МАКСИМАЛЬНО агрессивная очистка
+for i in {1..5}; do
+    # Убиваем по имени процесса
+    pkill -9 -f "apt-get" 2>/dev/null || true
+    pkill -9 -f "dpkg" 2>/dev/null || true
+    pkill -9 -f "unattended" 2>/dev/null || true
+    pkill -9 -f "packagekit" 2>/dev/null || true
+    
+    # Убиваем конкретные PID которые часто блокируют
+    kill -9 2963 7969 2>/dev/null || true
+    
+    # Проверяем что процессы убиты
+    if ! pgrep -f "apt-get\|dpkg" > /dev/null; then
+        break
+    fi
+    
+    print_info "Попытка $i: процессы еще живы, ждем..."
+    sleep 5
+done
+
+# Если процессы все еще живы - принудительная перезагрузка
+if pgrep -f "apt-get\|dpkg" > /dev/null; then
+    print_warning "КРИТИЧНО: dpkg процессы не убиваются! Требуется перезагрузка сервера."
+    print_warning "Выполните: sudo reboot && после перезагрузки запустите установку снова"
+    exit 1
+fi
 
 # Подождать
 sleep 3
