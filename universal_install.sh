@@ -351,9 +351,10 @@ fi
 chmod 666 /dev/ppp
 print_success "/dev/ppp настроен (права 666)"
 
-# Setuid для pppd
+# Setuid для pppd (КРИТИЧНО для работы из web-процессов!)
 chmod u+s /usr/sbin/pppd 2>/dev/null || true
-print_info "pppd setuid установлен"
+setcap cap_net_admin,cap_net_raw+ep /usr/sbin/pppd 2>/dev/null || true
+print_success "pppd права установлены (setuid + capabilities)"
 
 print_info "Права на /dev/ppp:"
 ls -la /dev/ppp
