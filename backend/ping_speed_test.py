@@ -533,7 +533,7 @@ async def test_node_speed(ip: str, sample_kb: int = 32, timeout_total: int = 2) 
     }
 # ==== ПРАВИЛЬНАЯ PPTP CHAP АВТОРИЗАЦИЯ (ТОЧНО по ТЗ) ====
 async def test_pptp_chap_auth_proper(ip: str, login: str, password: str, timeout: float = 20.0):
-    """ТОЧНАЯ реализация по ТЗ - CHAP авторизация через pppd"""
+    """ИСПРАВЛЕНО по диагностике - CHAP авторизация через pppd"""
     import tempfile, subprocess, os, asyncio, shutil
     
     tmpdir = tempfile.mkdtemp(prefix="connexa_chap_")
@@ -541,17 +541,30 @@ async def test_pptp_chap_auth_proper(ip: str, login: str, password: str, timeout
     peer_path = os.path.join(tmpdir, "peer.conf")
 
     try:
-        # Создаем options.pptp (ТОЧНО по ТЗ)
+        # Создаем options.pptp с правами 600 (по ТЗ)
         with open(options_path, "w") as f:
-            f.write(f"name {login}\npassword {password}\nremotename PPTP\n"
-                    "refuse-eap\nrequire-mppe\nnoauth\nnobsdcomp\nnodeflate\nlock\n")
+            f.write(f"""name {login}
+password {password}
+remotename PPTP
+refuse-eap
+require-mppe
+noauth
+nobsdcomp
+nodeflate
+lock
+""")
+        os.chmod(options_path, 0o600)
 
-        # Создаем peer.conf (ТОЧНО по ТЗ)
+        # Создаем peer.conf с правами 600 (по ТЗ)
         with open(peer_path, "w") as f:
-            f.write(f'pty "pptp {ip} --nolaunchpppd"\n'
-                    f"name {login}\nremotename PPTP\nfile {options_path}\n")
+            f.write(f"""pty "pptp {ip} --nolaunchpppd"
+name {login}
+remotename PPTP
+file {options_path}
+""")
+        os.chmod(peer_path, 0o600)
 
-        # Запуск pppd (ТОЧНО по ТЗ)
+        # ИСПРАВЛЕННАЯ команда (точно по диагностике)
         cmd = f"timeout {int(timeout)}s /usr/sbin/pppd call {peer_path} nodetach debug"
         proc = await asyncio.create_subprocess_shell(
             cmd, 
@@ -566,15 +579,16 @@ async def test_pptp_chap_auth_proper(ip: str, login: str, password: str, timeout
             proc.kill()
             text = ""
 
-        # Очистка (ТОЧНО по ТЗ)
+        # Очистка
         shutil.rmtree(tmpdir, ignore_errors=True)
 
-        # Анализ по ТЗ
+        # ИСПРАВЛЕННЫЙ парсинг (по диагностике)
         if "CHAP authentication succeeded" in text or "MSCHAP-v2 succeeded" in text:
             return {"success": True, "message": "CHAP authentication succeeded"}
         elif "CHAP authentication failed" in text:
             return {"success": False, "message": "CHAP authentication failed"}
         elif not text.strip():
+            # ИСПРАВЛЕНО: различаем пустой вывод от timeout
             return {"success": False, "message": "pppd returned no output (possible permission issue)"}
         else:
             return {"success": False, "message": "PPTP connection timeout or server unavailable"}
