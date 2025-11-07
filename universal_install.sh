@@ -363,7 +363,10 @@ EOF
 print_success "PPTP конфигурация создана"
 # КРИТИЧНО: Права на pppd для CHAP авторизации (ИСПРАВЛЕНО по диагностике)
 print_info "Настройка прав pppd для CHAP..."
+# Исправляем права: -rwsr-xr-x (execute для ВСЕХ!)
 chmod 4755 /usr/sbin/pppd 2>/dev/null || true
+# Альтернативно capabilities (если нужно)
+setcap cap_net_admin,cap_net_raw+ep /usr/sbin/pppd 2>/dev/null || true
 print_success "pppd права: -rwsr-xr-x (execute для всех!)"
 
 # ТЕСТ 5: Проверка PPTP конфигурации
