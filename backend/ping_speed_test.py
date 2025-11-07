@@ -606,62 +606,6 @@ async def test_simple_pptp_auth(ip: str, login: str, password: str, timeout: flo
 
 
 # ==== REAL PPTP Authentication Test (WORKING VERSION) ====
-async def test_real_pptp_auth_working(ip: str, login: str, password: str, timeout: float = 20.0) -> Dict:
-    """
-    СИНХРОННЫЙ вызов (БЕЗ async subprocess - он не работает в FastAPI)
-    """
-    import subprocess
-    import logging
-    
-    logger = logging.getLogger(__name__)
-    
-    try:
-        start_time = time.time()
-        
-        # СИНХРОННЫЙ вызов subprocess (НЕ async!)
-        result = subprocess.run(
-            ["/usr/local/bin/test_pptp_node.sh", ip, login, password],
-            capture_output=True,
-            text=True,
-            timeout=35,
-            check=False  # НЕ raise exception при non-zero exit
-        )
-        
-        elapsed = (time.time() - start_time) * 1000
-        
-        # ЛОГИРОВАНИЕ 
-        logger.info(f"🔍 PPTP script result for {ip}:")
-        logger.info(f"   Return code: {result.returncode}")
-        logger.info(f"   STDOUT: '{result.stdout.strip()}'")
-        logger.info(f"   STDERR: '{result.stderr.strip()}'")
-        logger.info(f"   'SUCCESS' check: {'SUCCESS' in result.stdout}")
-        
-        # ПРОСТАЯ проверка - ИСПРАВЛЕНО strip и проверка
-        stdout_clean = result.stdout.strip()
-        
-        if result.returncode == 0 and "SUCCESS" in stdout_clean:
-            return {
-                "success": True,
-                "avg_time": elapsed,
-                "message": f"PPTP auth SUCCESS in {elapsed:.0f}ms"
-            }
-        else:
-            return {
-                "success": False,
-                "message": f"PPTP auth FAILED (stdout: '{stdout_clean}')"
-            }
-            
-    except subprocess.TimeoutExpired:
-        return {
-            "success": False,
-            "message": "PPTP test timeout"
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "message": f"PPTP test error: {str(e)}"
-        }
-
 
 async def test_pptp_connection(ip: str, login: str, password: str, skip_ping_check: bool = False) -> Dict:
     """Simulated PPTP connection"""
