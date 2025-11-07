@@ -370,10 +370,8 @@ IP=$1
 LOGIN=$2
 PASSWORD=$3
 PEER_NAME="pptp_test_${IP//./_}"
-LOG_FILE="/tmp/pptp_test_${IP//./_}.log"
 
-echo "$(date): Testing $IP" > $LOG_FILE
-
+# Создаем peer
 cat > /etc/ppp/peers/$PEER_NAME << EOF
 pty "pptp $IP --nolaunchpppd"
 user $LOGIN
@@ -382,22 +380,44 @@ noauth
 mtu 1400
 nodefaultroute
 file /etc/ppp/options.pptp
+ipparam $PEER_NAME
 EOF
 
-/usr/sbin/pppd call $PEER_NAME debug >> $LOG_FILE 2>&1 &
+# Запускаем pppd
+/usr/sbin/pppd call $PEER_NAME debug &
 PPPD_PID=$!
 
+# Ждем 25 секунд
 sleep 25
 
-if ip link show | grep -q "ppp.*UP"; then
+# ИСПРАВЛЕНО: Проверяем конкретный interface для этого peer
+PPP_IFACE=""
+for iface in /sys/class/net/ppp*; do
+    if [ -e "$iface" ]; then
+        iface_name=$(basename $iface)
+        if ip link show $iface_name | grep -q "UP"; then
+            if pgrep -f "call $PEER_NAME" > /dev/null; then
+                PPP_IFACE=$iface_name
+                break
+            fi
+        fi
+    fi
+done
+
+if [ -n "$PPP_IFACE" ]; then
     echo "SUCCESS"
 else
     echo "FAILED"
 fi
 
+# Очистка
 kill $PPPD_PID 2>/dev/null
 pkill -f "call $PEER_NAME" 2>/dev/null
 rm -f /etc/ppp/peers/$PEER_NAME
+
+if [ -n "$PPP_IFACE" ]; then
+    ip link delete $PPP_IFACE 2>/dev/null || true
+fi
 WRAPPER_SCRIPT
 
 chmod +x /usr/local/bin/test_pptp_node.sh
