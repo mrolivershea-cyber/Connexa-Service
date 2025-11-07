@@ -3632,18 +3632,12 @@ async def manual_ping_test_batch(
     progress = ProgressTracker(session_id, len(nodes))
     progress.update(0, f"Начинаем ping тестирование {len(nodes)} узлов...")
     
-    # Start background batch testing СИНХРОННО для ping_only (НЕ через threading!)
-    if test_request.ping_timeouts and len(test_request.ping_timeouts) > 0:
-        ping_timeout = test_request.ping_timeouts[0]
-    else:
-        ping_timeout = 8.0
-    
-    # КРИТИЧНО: Ping OK (PPTP) НЕ через threading - subprocess ломается в thread!
-    asyncio.create_task(process_testing_batches(
+    # Start background batch testing через threading
+    run_async_in_thread(process_testing_batches(
         session_id, [n.id for n in nodes], "ping_only", db,
-        ping_concurrency=test_request.ping_concurrency or 1,
+        ping_concurrency=test_request.ping_concurrency or 15,
         speed_concurrency=test_request.speed_concurrency or 8,
-        ping_timeouts=[ping_timeout],
+        ping_timeouts=test_request.ping_timeouts or [0.8,1.2,1.6],
         speed_sample_kb=test_request.speed_sample_kb or 512,
         speed_timeout=test_request.speed_timeout or 15
     ))
@@ -4026,18 +4020,12 @@ async def manual_ping_test_batch_progress(
     progress = ProgressTracker(session_id, len(nodes))
     progress.update(0, f"Начинаем ping тестирование {len(nodes)} узлов...")
     
-    # Start background batch testing СИНХРОННО для ping_only (НЕ через threading!)
-    if test_request.ping_timeouts and len(test_request.ping_timeouts) > 0:
-        ping_timeout = test_request.ping_timeouts[0]
-    else:
-        ping_timeout = 8.0
-    
-    # КРИТИЧНО: Ping OK (PPTP) НЕ через threading - subprocess ломается в thread!
-    asyncio.create_task(process_testing_batches(
+    # Start background batch testing через threading
+    run_async_in_thread(process_testing_batches(
         session_id, [n.id for n in nodes], "ping_only", db,
-        ping_concurrency=test_request.ping_concurrency or 1,
+        ping_concurrency=test_request.ping_concurrency or 15,
         speed_concurrency=test_request.speed_concurrency or 8,
-        ping_timeouts=[ping_timeout],
+        ping_timeouts=test_request.ping_timeouts or [0.8,1.2,1.6],
         speed_sample_kb=test_request.speed_sample_kb or 512,
         speed_timeout=test_request.speed_timeout or 15
     ))
@@ -4176,15 +4164,11 @@ async def process_testing_batches(session_id: str, node_ids: list, testing_mode:
                 break
             
             # Process current batch with concurrency
-            # КРИТИЧНО: Для Ping OK (PPTP auth) - только 1 одновременно!
-            # Множественные pppd конфликтуют за /dev/ppp
-            if testing_mode == "ping_only":
-                global_sem = asyncio.Semaphore(1)  # ТОЛЬКО 1 для PPTP!
-                session_sem = asyncio.Semaphore(1)
-            else:
-                global_sem = global_ping_sem if testing_mode == "ping_only" else global_speed_sem
-                session_sem = asyncio.Semaphore(ping_concurrency if testing_mode == "ping_only" else speed_concurrency)
+            # Choose global semaphore by mode
+            global_sem = global_ping_sem if testing_mode == "ping_only" else global_speed_sem
             
+            # Combine global limiter + session limiter
+            session_sem = asyncio.Semaphore(ping_concurrency if testing_mode == "ping_only" else speed_concurrency)
             sem = session_sem
             tasks = []
 
@@ -4212,9 +4196,7 @@ async def process_testing_batches(session_id: str, node_ids: list, testing_mode:
                             do_ping = False
                             do_speed = False
                             if testing_mode == "ping_only":
-                                # ИСПРАВЛЕНО: Всегда делаем ping для ping_only режима
-                                # Даже если есть ping_light - нужна РЕАЛЬНАЯ PPTP авторизация
-                                do_ping = True
+                                do_ping = not has_ping_baseline(original_status)
                             elif testing_mode == "speed_only":
                                 do_speed = (original_status != "ping_failed")
                             else:
@@ -4226,21 +4208,33 @@ async def process_testing_batches(session_id: str, node_ids: list, testing_mode:
                                 progress_increment(session_id, f"⏭️ {node.ip} - skipped ({original_status})", {"node_id": node.id, "ip": node.ip, "status": original_status, "success": True})
                                 return True
 
-                            # Do ping (ПРАВИЛЬНАЯ CHAP авторизация)
+                            # Do ping
                             if do_ping:
                                 try:
-                                    from ping_speed_test import test_pptp_chap_auth
-                                    logger.info(f"🔍 CHAP auth testing {node.ip}")
+                                    from ping_speed_test import multiport_tcp_ping
+                                    ports = get_ping_ports_for_node(node)
+                                    logger.info(f"🔍 Ping testing {node.ip} on ports {ports}")
                                     
-                                    ping_result = await test_pptp_chap_auth(node.ip, node.login, node.password, timeout=15.0)
-                                    logger.info(f"🏓 CHAP result for {node.ip}: {ping_result}")
+                                    ping_result = await multiport_tcp_ping(node.ip, ports=ports, timeouts=ping_timeouts)
+                                    logger.info(f"🏓 Ping result for {node.ip}: {ping_result}")
                                     
                                     if ping_result.get('success'):
                                         node.status = "ping_ok"
-                                        logger.info(f"✅ {node.ip} CHAP auth SUCCESS")
+                                        logger.info(f"✅ {node.ip} ping success: {ping_result.get('avg_time', 0)}ms")
+                                        
+                                        # ОТКЛЮЧЕНО: Автоматическая GEO + Fraud проверка
+                                        # Пользователь будет запускать вручную через Testing Modal
+                                        # try:
+                                        #     from service_manager_geo import service_manager
+                                        #     complete_success = await service_manager.enrich_node_complete(node, local_db)
+                                        #     if complete_success:
+                                        #         logger.info(f"✅ Node enriched: {node.ip}")
+                                        #         local_db.commit()
+                                        # except Exception as enrich_error:
+                                        #     logger.warning(f"Enrichment error for {node.ip}: {enrich_error}")
                                     else:
                                         node.status = original_status if has_ping_baseline(original_status) else "ping_failed"
-                                        logger.info(f"❌ {node.ip} CHAP auth FAILED: {ping_result.get('message')}")
+                                        logger.info(f"❌ {node.ip} ping failed: {ping_result.get('message', 'timeout')}")
                                     
                                     node.last_update = datetime.now(timezone.utc)
                                     local_db.commit()
@@ -4250,7 +4244,7 @@ async def process_testing_batches(session_id: str, node_ids: list, testing_mode:
                                     node.last_update = datetime.now(timezone.utc)
                                     local_db.commit()
 
-                            # Do speed (TCP измерение - быстро)
+                            # Do speed
                             if do_speed:
                                 try:
                                     from ping_speed_test import test_node_speed
@@ -4259,6 +4253,7 @@ async def process_testing_batches(session_id: str, node_ids: list, testing_mode:
                                     speed_result = await test_node_speed(node.ip, sample_kb=speed_sample_kb, timeout_total=speed_timeout)
                                     logger.info(f"📊 Speed result for {node.ip}: {speed_result}")
                                     
+                                    # ИСПРАВЛЕНО: Проверка download_mbps (НЕ download)
                                     if speed_result.get('success') and speed_result.get('download_mbps'):
                                         download_speed = speed_result['download_mbps']
                                         node.speed = f"{download_speed:.1f} Mbps"

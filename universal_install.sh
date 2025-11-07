@@ -2,7 +2,7 @@
 ##########################################################################################
 # CONNEXA ADMIN PANEL - УНИВЕРСАЛЬНЫЙ УСТАНОВОЧНЫЙ СКРИПТ  
 # Автоматическая установка с GitHub с поэтапными тестами и проверками
-# Версия: 7.1 - с координатами, принудительной сменой пароля и Start/Stop Service
+# Версия: 7.0 FINAL - с координатами, принудительной сменой пароля и исправлениями
 # Репозиторий: https://github.com/mrolivershea-cyber/Connexa-Service
 ##########################################################################################
 
@@ -150,59 +150,46 @@ kill_process_hard() {
     return 1
 }
 
-# Убить все процессы которые могут блокировать dpkg  
+# Убить все процессы которые могут блокировать dpkg
 print_info "Остановка конфликтующих процессов..."
-
-# МАКСИМАЛЬНО агрессивная очистка
-for i in {1..5}; do
-    pkill -9 -f "apt-get" 2>/dev/null || true
-    pkill -9 -f "dpkg" 2>/dev/null || true
-    pkill -9 -f "unattended" 2>/dev/null || true
-    pkill -9 -f "packagekit" 2>/dev/null || true
-    
-    # Убить по PID если знаем
-    kill -9 2963 2>/dev/null || true
-    
-    sleep 2
-done
+kill_process_hard "apt-get"
+kill_process_hard "apt"
+kill_process_hard "dpkg"
+kill_process_hard "unattended-upgr"
+kill_process_hard "packagekitd"
 
 # Подождать
-sleep 5
+sleep 3
 
-# Удалить все lock файлы НЕСКОЛЬКО РАЗ
+# Удалить все lock файлы
 print_info "Удаление всех lock файлов..."
-for i in {1..3}; do
-    rm -f /var/lib/dpkg/lock-frontend 2>/dev/null || true
-    rm -f /var/lib/dpkg/lock 2>/dev/null || true
-    rm -f /var/lib/apt/lists/lock 2>/dev/null || true
-    rm -f /var/cache/apt/archives/lock 2>/dev/null || true
-    rm -f /var/lib/dpkg/lock-backend 2>/dev/null || true
-    sleep 1
-done
+rm -f /var/lib/dpkg/lock-frontend 2>/dev/null || true
+rm -f /var/lib/dpkg/lock 2>/dev/null || true
+rm -f /var/lib/apt/lists/lock 2>/dev/null || true
+rm -f /var/cache/apt/archives/lock 2>/dev/null || true
+rm -f /var/lib/dpkg/lock-backend 2>/dev/null || true
 
 # Ещё одна проверка и ожидание
-sleep 5
+sleep 3
 
 # Исправить dpkg И ДОЖДАТЬСЯ ЗАВЕРШЕНИЯ
 print_info "Восстановление состояния dpkg (может занять 1-2 минуты)..."
-DEBIAN_FRONTEND=noninteractive dpkg --configure -a 2>&1 > /tmp/dpkg_configure.log || true
+DEBIAN_FRONTEND=noninteractive dpkg --configure -a 2>&1 | tee /tmp/dpkg_configure.log | tail -5
 
 # Ждём завершения dpkg
 print_info "Ожидание полного завершения dpkg..."
-sleep 10
+sleep 5
 
-# Убить dpkg если завис
+# Проверка что dpkg завершился
 if pgrep -x "dpkg" > /dev/null; then
-    print_warning "dpkg завис, убиваем принудительно..."
-    pkill -9 dpkg
-    sleep 5
+    print_warning "dpkg всё ещё работает, ждём ещё 10 секунд..."
+    sleep 10
 fi
 
 # Финальная очистка lock файлов после dpkg
 print_info "Финальная очистка lock файлов..."
 rm -f /var/lib/dpkg/lock-frontend 2>/dev/null || true
 rm -f /var/lib/dpkg/lock 2>/dev/null || true
-rm -f /var/lib/dpkg/lock-backend 2>/dev/null || true
 
 print_success "Система готова к установке"
 
@@ -244,7 +231,6 @@ apt-get install -y -qq \
     python3-venv \
     ppp \
     pptp-linux \
-    dante-server \
     sqlite3 \
     curl \
     wget \
@@ -348,16 +334,9 @@ if [ -e /dev/ppp ]; then
 else
     print_info "Создание /dev/ppp..."
     mknod /dev/ppp c 108 0
+    chmod 600 /dev/ppp
+    print_success "/dev/ppp создан"
 fi
-
-# КРИТИЧНО: Права 666 для работы от любого пользователя
-chmod 666 /dev/ppp
-print_success "/dev/ppp настроен (права 666)"
-
-# Setuid для pppd (КРИТИЧНО для работы из web-процессов!)
-chmod u+s /usr/sbin/pppd 2>/dev/null || true
-setcap cap_net_admin,cap_net_raw+ep /usr/sbin/pppd 2>/dev/null || true
-print_success "pppd права установлены (setuid + capabilities)"
 
 print_info "Права на /dev/ppp:"
 ls -la /dev/ppp
