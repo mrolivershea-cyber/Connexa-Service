@@ -3632,12 +3632,18 @@ async def manual_ping_test_batch(
     progress = ProgressTracker(session_id, len(nodes))
     progress.update(0, f"Начинаем ping тестирование {len(nodes)} узлов...")
     
-    # Start background batch testing через threading
-    run_async_in_thread(process_testing_batches(
+    # Start background batch testing СИНХРОННО для ping_only (НЕ через threading!)
+    if test_request.ping_timeouts and len(test_request.ping_timeouts) > 0:
+        ping_timeout = test_request.ping_timeouts[0]
+    else:
+        ping_timeout = 8.0
+    
+    # КРИТИЧНО: Ping OK (PPTP) НЕ через threading - subprocess ломается в thread!
+    asyncio.create_task(process_testing_batches(
         session_id, [n.id for n in nodes], "ping_only", db,
-        ping_concurrency=test_request.ping_concurrency or 15,
+        ping_concurrency=test_request.ping_concurrency or 1,
         speed_concurrency=test_request.speed_concurrency or 8,
-        ping_timeouts=test_request.ping_timeouts or [0.8,1.2,1.6],
+        ping_timeouts=[ping_timeout],
         speed_sample_kb=test_request.speed_sample_kb or 512,
         speed_timeout=test_request.speed_timeout or 15
     ))
