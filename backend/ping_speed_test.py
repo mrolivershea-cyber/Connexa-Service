@@ -588,8 +588,11 @@ file {options_path}
         elif "CHAP authentication failed" in text:
             return {"success": False, "message": "CHAP authentication failed"}
         elif not text.strip():
-            # ИСПРАВЛЕНО: различаем пустой вывод от timeout
+            # ИСПРАВЛЕНО: различаем пустой вывод от timeout (по диагностике)
             return {"success": False, "message": "pppd returned no output (possible permission issue)"}
+        elif "permission denied" in text.lower():
+            # ДОБАВЛЕНО: детектирование проблем прав (по диагностике)
+            return {"success": False, "message": "Permission denied: check /usr/sbin/pppd rights or capabilities"}
         else:
             return {"success": False, "message": "PPTP connection timeout or server unavailable"}
             
