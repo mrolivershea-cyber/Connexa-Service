@@ -532,6 +532,86 @@ async def test_node_speed(ip: str, sample_kb: int = 32, timeout_total: int = 2) 
         "message": "Speed test failed - network unreachable or too slow",
     }
 
+# ==== ПРАВИЛЬНАЯ PPTP CHAP АВТОРИЗАЦИЯ (из рекомендаций GPT) ====
+async def test_pptp_chap_auth(ip: str, login: str, password: str, timeout: float = 15.0) -> Dict:
+    """
+    ПРАВИЛЬНАЯ PPTP CHAP авторизация через pppd (рекомендация GPT)
+    Использует временные файлы /tmp, ищет "CHAP authentication succeeded"
+    """
+    import subprocess
+    import os
+    import random
+    
+    try:
+        start_time = time.time()
+        
+        # Уникальная директория
+        tmp_id = random.randint(10000, 99999)
+        tmp_dir = f"/tmp/pptpcheck_{tmp_id}"
+        os.makedirs(tmp_dir, exist_ok=True)
+        
+        # options.pptp
+        options_file = f"{tmp_dir}/options.pptp"
+        with open(options_file, 'w') as f:
+            f.write(f"""name {login}
+password {password}
+remotename PPTP
+refuse-eap
+require-mppe
+noauth
+nobsdcomp
+nodeflate
+lock
+""")
+        
+        # peer.conf
+        peer_file = f"{tmp_dir}/peer.conf"
+        with open(peer_file, 'w') as f:
+            f.write(f"""pty "pptp {ip} --nolaunchpppd"
+name {login}
+remotename PPTP
+file {options_file}
+""")
+        
+        # Запуск pppd с проверкой CHAP
+        result = subprocess.run(
+            ["timeout", "15s", "/usr/sbin/pppd", "call", peer_file, "nodetach", "debug"],
+            capture_output=True,
+            text=True
+        )
+        
+        output = result.stdout + result.stderr
+        
+        # Очистка
+        subprocess.run(["rm", "-rf", tmp_dir], stderr=subprocess.DEVNULL)
+        subprocess.run(["pkill", "-f", f"pptpcheck_{tmp_id}"], stderr=subprocess.DEVNULL)
+        
+        # Проверка CHAP
+        if "CHAP authentication succeeded" in output:
+            elapsed = (time.time() - start_time) * 1000
+            return {
+                "success": True,
+                "avg_time": elapsed,
+                "message": f"CHAP auth SUCCESS in {elapsed:.0f}ms"
+            }
+        else:
+            return {
+                "success": False,
+                "message": "CHAP authentication failed"
+            }
+            
+    except Exception as e:
+        # Очистка при ошибке
+        try:
+            subprocess.run(["rm", "-rf", tmp_dir], stderr=subprocess.DEVNULL)
+        except:
+            pass
+        
+        return {
+            "success": False,
+            "message": f"CHAP test error: {str(e)}"
+        }
+
 async def test_pptp_connection(ip: str, login: str, password: str, skip_ping_check: bool = False) -> Dict:
     """Simulated PPTP connection"""
     return await PPTPTester.pptp_connection_test(ip, login, password, skip_ping_check)
