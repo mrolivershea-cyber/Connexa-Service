@@ -536,7 +536,7 @@ async def test_node_speed(ip: str, sample_kb: int = 32, timeout_total: int = 2) 
 # ==== REAL PPTP Authentication Test (WORKING VERSION) ====
 async def test_real_pptp_auth_working(ip: str, login: str, password: str, timeout: float = 20.0) -> Dict:
     """
-    РАБОЧАЯ версия через bash wrapper (избегаем zombie процессы)
+    СИНХРОННЫЙ вызов (БЕЗ async subprocess - он не работает в FastAPI)
     """
     import subprocess
     import logging
@@ -546,24 +546,26 @@ async def test_real_pptp_auth_working(ip: str, login: str, password: str, timeou
     try:
         start_time = time.time()
         
-        # Вызываем bash скрипт (синхронно)
+        # СИНХРОННЫЙ вызов subprocess (НЕ async!)
         result = subprocess.run(
             ["/usr/local/bin/test_pptp_node.sh", ip, login, password],
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=35,
+            check=False  # НЕ raise exception при non-zero exit
         )
         
         elapsed = (time.time() - start_time) * 1000
         
-        # ЛОГИРОВАНИЕ ДЛЯ ОТЛАДКИ
+        # ЛОГИРОВАНИЕ 
         logger.info(f"🔍 PPTP script result for {ip}:")
         logger.info(f"   Return code: {result.returncode}")
-        logger.info(f"   STDOUT: '{result.stdout}'")
-        logger.info(f"   STDERR: '{result.stderr}'")
-        logger.info(f"   'SUCCESS' in stdout: {'SUCCESS' in result.stdout}")
+        logger.info(f"   STDOUT: '{result.stdout.strip()}'")
+        logger.info(f"   STDERR: '{result.stderr.strip()}'")
+        logger.info(f"   'SUCCESS' check: {'SUCCESS' in result.stdout}")
         
-        if "SUCCESS" in result.stdout:
+        # ПРОСТАЯ проверка
+        if result.returncode == 0 and "SUCCESS" in result.stdout:
             return {
                 "success": True,
                 "avg_time": elapsed,
@@ -572,7 +574,7 @@ async def test_real_pptp_auth_working(ip: str, login: str, password: str, timeou
         else:
             return {
                 "success": False,
-                "message": "PPTP auth FAILED"
+                "message": f"PPTP auth FAILED (code: {result.returncode})"
             }
             
     except subprocess.TimeoutExpired:
