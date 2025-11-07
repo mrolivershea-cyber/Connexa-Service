@@ -554,8 +554,6 @@ async def change_password(
     return {"message": "Password changed successfully"}
 
 
-@api_router.post("/debug/pptp-test")
-async def debug_pptp_test(
     request: dict,
     current_user: User = Depends(get_current_user)
 ):
