@@ -553,6 +553,51 @@ async def change_password(
     
     return {"message": "Password changed successfully"}
 
+
+@api_router.post("/debug/pptp-test")
+async def debug_pptp_test(
+    request: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """DEBUG: Прямой тест PPTP без batch processing"""
+    ip = request.get("ip")
+    login = request.get("login", "admin")  
+    password = request.get("password", "admin")
+    
+    import subprocess
+    import time
+    
+    try:
+        logger.info(f"🔍 DEBUG PPTP test для {ip}")
+        
+        start_time = time.time()
+        result = subprocess.run(
+            ["/usr/local/bin/test_pptp_node.sh", ip, login, password],
+            capture_output=True,
+            text=True,
+            timeout=40
+        )
+        elapsed = (time.time() - start_time) * 1000
+        
+        stdout_clean = result.stdout.strip()
+        
+        return {
+            "ip": ip,
+            "return_code": result.returncode,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "stdout_clean": stdout_clean,
+            "success_check": "SUCCESS" in stdout_clean,
+            "elapsed_ms": elapsed,
+            "final_result": "SUCCESS" if ("SUCCESS" in stdout_clean and result.returncode == 0) else "FAILED"
+        }
+        
+    except Exception as e:
+        return {
+            "ip": ip,
+            "error": str(e),
+            "final_result": "ERROR"
+        }
 @api_router.get("/auth/me")
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     return {
