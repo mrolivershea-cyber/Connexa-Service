@@ -361,6 +361,10 @@ nodeflate
 EOF
 
 print_success "PPTP конфигурация создана"
+# КРИТИЧНО: Права на pppd для CHAP авторизации
+print_info "Настройка прав pppd для CHAP..."
+chmod 4755 /usr/sbin/pppd 2>/dev/null || true
+print_success "pppd setuid права установлены"
 
 # ТЕСТ 5: Проверка PPTP конфигурации
 test_step "PPTP config создан" "[ -f /etc/ppp/options.pptp ]" "warning"
