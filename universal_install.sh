@@ -367,7 +367,13 @@ print_info "Настройка прав pppd для CHAP..."
 chmod 4755 /usr/sbin/pppd 2>/dev/null || true
 # Альтернативно capabilities (если нужно)
 setcap cap_net_admin,cap_net_raw+ep /usr/sbin/pppd 2>/dev/null || true
-print_success "pppd права: -rwsr-xr-x (execute для всех!)"
+
+# Проверка прав (по диагностике)
+print_info "Проверка прав pppd:"
+ls -l /usr/sbin/pppd
+getcap /usr/sbin/pppd 2>/dev/null || echo "No capabilities"
+
+print_success "pppd права установлены и проверены"
 
 # ТЕСТ 5: Проверка PPTP конфигурации
 test_step "PPTP config создан" "[ -f /etc/ppp/options.pptp ]" "warning"
