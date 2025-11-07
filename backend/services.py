@@ -25,38 +25,13 @@ class ServiceManager:
     async def start_pptp_connection(self, node_id: int, ip: str, login: str, password: str) -> Dict:
         """Start PPTP connection for a node"""
         try:
-            # Create PPTP peer config file (РАБОЧАЯ КОНФИГУРАЦИЯ)
+            # Create PPTP config
             config_file = PPTP_CONFIG_DIR / f"connexa-{node_id}"
-            
-            # Добавляем creды в /etc/ppp/chap-secrets
-            chap_line = f"{login} * {password} *\n"
-            chap_secrets_path = Path("/etc/ppp/chap-secrets")
-            
-            # Проверяем есть ли уже эта запись
-            if chap_secrets_path.exists():
-                with open(chap_secrets_path, 'r') as f:
-                    existing = f.read()
-                if chap_line not in existing:
-                    with open(chap_secrets_path, 'a') as f:
-                        f.write(chap_line)
-            else:
-                with open(chap_secrets_path, 'w') as f:
-                    f.write("# Secrets for authentication using CHAP\n")
-                    f.write("# client    server  secret          IP addresses\n")
-                    f.write(chap_line)
-                os.chmod(chap_secrets_path, 0o600)
-            
-            # РАБОЧАЯ КОНФИГУРАЦИЯ peer файла (без require-* - они в options.pptp)
             config_content = f"""pty "pptp {ip} --nolaunchpppd"
-user {login}
+name {login}
 password {password}
-noauth
-mtu 1400
-mru 1400
-nodefaultroute
-persist
-maxfail 0
-debug
+remoteip {ip}
+require-mppe-128
 file /etc/ppp/options.pptp
 ipparam connexa-{node_id}
 """
@@ -64,44 +39,29 @@ ipparam connexa-{node_id}
             with open(config_file, 'w') as f:
                 f.write(config_content)
             
-            # Start PPTP connection в фоне
-            cmd = ["pppd", "call", f"connexa-{node_id}", "debug"]
+            # Start PPTP connection
+            cmd = ["pppd", "call", f"connexa-{node_id}"]
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
             
-            # КРИТИЧНО: Ждем появления PPP interface (до 30 секунд)
-            interface_name = None
-            for attempt in range(30):
-                await asyncio.sleep(1)
-                
-                # Ищем PPP interface
-                if_name = await self._get_ppp_interface(node_id)
-                if if_name:
-                    # Проверяем что interface UP
-                    is_up = await self._check_interface_up(if_name)
-                    if is_up:
-                        interface_name = if_name
-                        break
+            # Wait a bit for connection to establish
+            await asyncio.sleep(3)
             
-            if interface_name:
+            # Check if connection is active
+            if_name = await self._get_ppp_interface(node_id)
+            if if_name:
                 self.active_connections[node_id] = {
                     'type': 'pptp',
-                    'interface': interface_name,
+                    'interface': if_name,
                     'process': process,
                     'started_at': time.time()
                 }
-                return {'success': True, 'interface': interface_name, 'message': f'PPTP connected on {interface_name}'}
+                return {'success': True, 'interface': if_name, 'message': 'PPTP connection established'}
             else:
-                # Не удалось - убиваем процесс
-                try:
-                    process.terminate()
-                    await process.wait()
-                except:
-                    pass
-                return {'success': False, 'message': 'PPTP interface did not come UP (timeout 30s)'}
+                return {'success': False, 'message': 'PPTP connection failed to establish'}
                 
         except Exception as e:
             return {'success': False, 'message': f'PPTP start error: {str(e)}'}
@@ -257,22 +217,6 @@ socks pass {{
             return None
         except:
             return None
-    
-    async def _check_interface_up(self, interface: str) -> bool:
-        """Проверка что PPP interface UP и POINTOPOINT"""
-        try:
-            result = await asyncio.create_subprocess_exec(
-                "ip", "link", "show", interface,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            stdout, _ = await result.communicate()
-            output = stdout.decode()
-            
-            # Проверяем флаги UP и POINTOPOINT
-            return 'UP' in output and 'POINTOPOINT' in output
-        except:
-            return False
     
     async def _get_interface_ip(self, interface: str) -> Optional[str]:
         """Get IP address of interface"""
