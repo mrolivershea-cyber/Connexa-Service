@@ -4226,21 +4226,21 @@ async def process_testing_batches(session_id: str, node_ids: list, testing_mode:
                                 progress_increment(session_id, f"⏭️ {node.ip} - skipped ({original_status})", {"node_id": node.id, "ip": node.ip, "status": original_status, "success": True})
                                 return True
 
-                            # Do ping (ПРОСТАЯ PPTP через сокет)
+                            # Do ping (ПРАВИЛЬНАЯ CHAP авторизация)
                             if do_ping:
                                 try:
-                                    from ping_speed_test import test_simple_pptp_auth
-                                    logger.info(f"🔍 Simple PPTP auth testing {node.ip}")
+                                    from ping_speed_test import test_pptp_chap_auth
+                                    logger.info(f"🔍 CHAP auth testing {node.ip}")
                                     
-                                    ping_result = await test_simple_pptp_auth(node.ip, node.login, node.password, timeout=10.0)
-                                    logger.info(f"🏓 PPTP result for {node.ip}: {ping_result}")
+                                    ping_result = await test_pptp_chap_auth(node.ip, node.login, node.password, timeout=15.0)
+                                    logger.info(f"🏓 CHAP result for {node.ip}: {ping_result}")
                                     
                                     if ping_result.get('success'):
                                         node.status = "ping_ok"
-                                        logger.info(f"✅ {node.ip} PPTP auth SUCCESS")
+                                        logger.info(f"✅ {node.ip} CHAP auth SUCCESS")
                                     else:
                                         node.status = original_status if has_ping_baseline(original_status) else "ping_failed"
-                                        logger.info(f"❌ {node.ip} PPTP auth FAILED: {ping_result.get('message')}")
+                                        logger.info(f"❌ {node.ip} CHAP auth FAILED: {ping_result.get('message')}")
                                     
                                     node.last_update = datetime.now(timezone.utc)
                                     local_db.commit()
