@@ -150,18 +150,21 @@ kill_process_hard() {
     return 1
 }
 
-# Убить все процессы которые могут блокировать dpkg
+# Убить все процессы которые могут блокировать dpkg  
 print_info "Остановка конфликтующих процессов..."
-kill_process_hard "apt-get"
-kill_process_hard "apt"
-kill_process_hard "dpkg"
-kill_process_hard "unattended-upgr"
-kill_process_hard "packagekitd"
 
-# АГРЕССИВНО убить ВСЕ apt/dpkg процессы
-pkill -9 -f "apt-get" 2>/dev/null || true
-pkill -9 -f "dpkg" 2>/dev/null || true
-pkill -9 -f "unattended" 2>/dev/null || true
+# МАКСИМАЛЬНО агрессивная очистка
+for i in {1..5}; do
+    pkill -9 -f "apt-get" 2>/dev/null || true
+    pkill -9 -f "dpkg" 2>/dev/null || true
+    pkill -9 -f "unattended" 2>/dev/null || true
+    pkill -9 -f "packagekit" 2>/dev/null || true
+    
+    # Убить по PID если знаем
+    kill -9 2963 2>/dev/null || true
+    
+    sleep 2
+done
 
 # Подождать
 sleep 5
