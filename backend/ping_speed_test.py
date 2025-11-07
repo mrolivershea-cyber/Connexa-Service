@@ -564,8 +564,10 @@ async def test_real_pptp_auth_working(ip: str, login: str, password: str, timeou
         logger.info(f"   STDERR: '{result.stderr.strip()}'")
         logger.info(f"   'SUCCESS' check: {'SUCCESS' in result.stdout}")
         
-        # ПРОСТАЯ проверка
-        if result.returncode == 0 and "SUCCESS" in result.stdout:
+        # ПРОСТАЯ проверка - ИСПРАВЛЕНО strip и проверка
+        stdout_clean = result.stdout.strip()
+        
+        if result.returncode == 0 and "SUCCESS" in stdout_clean:
             return {
                 "success": True,
                 "avg_time": elapsed,
@@ -574,7 +576,7 @@ async def test_real_pptp_auth_working(ip: str, login: str, password: str, timeou
         else:
             return {
                 "success": False,
-                "message": f"PPTP auth FAILED (code: {result.returncode})"
+                "message": f"PPTP auth FAILED (stdout: '{stdout_clean}')"
             }
             
     except subprocess.TimeoutExpired:
