@@ -3,7 +3,7 @@
 # CONNEXA ADMIN PANEL - УНИВЕРСАЛЬНЫЙ УСТАНОВОЧНЫЙ СКРИПТ  
 # Автоматическая установка с GitHub с поэтапными тестами и проверками
 # Версия: 7.0 FINAL - с координатами, принудительной сменой пароля и исправлениями
-# Репозиторий: https://github.com/mrolivershea-cyber/Connexa-1
+# Репозиторий: https://github.com/mrolivershea-cyber/Connexa-Service
 ##########################################################################################
 
 set -e  # Exit on any error
@@ -23,7 +23,7 @@ NC='\033[0m' # No Color
 
 # Глобальные переменные
 INSTALL_DIR="/app"
-REPO_URL="https://github.com/mrolivershea-cyber/Connexa-1.git"
+REPO_URL="https://github.com/mrolivershea-cyber/Connexa-Service.git"
 BRANCH="main"
 ERRORS_FOUND=0
 WARNINGS_FOUND=0
