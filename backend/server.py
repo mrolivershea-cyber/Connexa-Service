@@ -4627,7 +4627,6 @@ async def manual_ping_speed_test_batch(
                 "success": True,
                 "status": node.status,
                 "original_status": original_status,
-                "ping_result": ping_result,
                 "speed_result": speed_result,
                 "message": f"Combined test: {original_status} -> {node.status}"
             }
