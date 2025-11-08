@@ -4211,15 +4211,16 @@ async def process_testing_batches(session_id: str, node_ids: list, testing_mode:
                             # Do ping
                             if do_ping:
                                 try:
-                                    from ping_speed_test import test_real_pptp_chap_auth
-                                    logger.info(f"🔍 REAL CHAP testing {node.login})")
+                                    from ping_speed_test import multiport_tcp_ping
+                                    ports = get_ping_ports_for_node(node)
+                                    logger.info(f"🔍 Ping testing {node.ip} on ports {ports}")
                                     
-                                    ping_result = await test_real_pptp_chap_auth(node.ip, node.login, node.password, timeout=25.0)
-                                    logger.info(f"🏓 CHAP result for {node.ip}: {ping_result}")
+                                    ping_result = await multiport_tcp_ping(node.ip, ports=ports, timeouts=ping_timeouts)
+                                    logger.info(f"🏓 Ping result for {node.ip}: {ping_result}")
                                     
                                     if ping_result.get('success'):
                                         node.status = "ping_ok"
-                                        logger.info(f"✅ {node.ip} CHAP auth SUCCESS")
+                                        logger.info(f"✅ {node.ip} ping success: {ping_result.get('avg_time', 0)}ms")
                                         
                                         # ОТКЛЮЧЕНО: Автоматическая GEO + Fraud проверка
                                         # Пользователь будет запускать вручную через Testing Modal
@@ -4580,6 +4581,31 @@ async def manual_ping_speed_test_batch(
             node.last_update = datetime.utcnow()
             db.commit()
             
+            # New single-port multi-timeout TCP ping
+            from ping_speed_test import multiport_tcp_ping
+            ports = get_ping_ports_for_node(node)
+            ping_result = await multiport_tcp_ping(node.ip, ports=ports, timeouts=[0.8, 1.2, 1.6])
+            
+            if not ping_result or not ping_result.get('success', False):
+                # Ping failed - never drop below PING OK baseline
+                if has_ping_baseline(original_status):
+                    node.status = original_status
+                else:
+                    node.status = "ping_failed"
+                node.last_check = datetime.utcnow()
+                node.last_update = datetime.utcnow()
+                db.commit()
+                
+                return {
+                    "node_id": node.id,
+                    "ip": node.ip,
+                    "success": False,
+                    "status": node.status,
+                    "original_status": original_status,
+                    "ping_result": ping_result,
+                    "message": f"Ping failed: {original_status} -> {node.status}"
+                }
+            
             # Step 2: Ping successful, now test speed
             node.status = "ping_ok"
             node.last_update = datetime.utcnow()
@@ -4627,6 +4653,7 @@ async def manual_ping_speed_test_batch(
                 "success": True,
                 "status": node.status,
                 "original_status": original_status,
+                "ping_result": ping_result,
                 "speed_result": speed_result,
                 "message": f"Combined test: {original_status} -> {node.status}"
             }
