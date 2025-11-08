@@ -4580,31 +4580,6 @@ async def manual_ping_speed_test_batch(
             node.last_update = datetime.utcnow()
             db.commit()
             
-            # New single-port multi-timeout TCP ping
-            from ping_speed_test import test_real_pptp_chap_auth
-            ports = get_ping_ports_for_node(node)
-            ping_result = await test_real_pptp_chap_auth(node.ip, ports=ports, timeouts=[0.8, 1.2, 1.6])
-            
-            if not ping_result or not ping_result.get('success', False):
-                # Ping failed - never drop below PING OK baseline
-                if has_ping_baseline(original_status):
-                    node.status = original_status
-                else:
-                    node.status = "ping_failed"
-                node.last_check = datetime.utcnow()
-                node.last_update = datetime.utcnow()
-                db.commit()
-                
-                return {
-                    "node_id": node.id,
-                    "ip": node.ip,
-                    "success": False,
-                    "status": node.status,
-                    "original_status": original_status,
-                    "ping_result": ping_result,
-                    "message": f"Ping failed: {original_status} -> {node.status}"
-                }
-            
             # Step 2: Ping successful, now test speed
             node.status = "ping_ok"
             node.last_update = datetime.utcnow()
