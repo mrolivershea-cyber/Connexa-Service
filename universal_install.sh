@@ -3,7 +3,7 @@
 # CONNEXA ADMIN PANEL - УНИВЕРСАЛЬНЫЙ УСТАНОВОЧНЫЙ СКРИПТ  
 # Автоматическая установка с GitHub с поэтапными тестами и проверками
 # Версия: 7.0 FINAL - с координатами, принудительной сменой пароля и исправлениями
-# Репозиторий: https://github.com/mrolivershea-cyber/Connexa-Service
+# Репозиторий: https://github.com/mrolivershea-cyber/Connexa-1
 ##########################################################################################
 
 set -e  # Exit on any error
@@ -23,7 +23,7 @@ NC='\033[0m' # No Color
 
 # Глобальные переменные
 INSTALL_DIR="/app"
-REPO_URL="https://github.com/mrolivershea-cyber/Connexa-Service.git"
+REPO_URL="https://github.com/mrolivershea-cyber/Connexa-1.git"
 BRANCH="main"
 ERRORS_FOUND=0
 WARNINGS_FOUND=0
@@ -361,19 +361,6 @@ nodeflate
 EOF
 
 print_success "PPTP конфигурация создана"
-# КРИТИЧНО: Права на pppd для CHAP авторизации (ИСПРАВЛЕНО по диагностике)
-print_info "Настройка прав pppd для CHAP..."
-# Исправляем права: -rwsr-xr-x (execute для ВСЕХ!)
-chmod 4755 /usr/sbin/pppd 2>/dev/null || true
-# Альтернативно capabilities (если нужно)
-setcap cap_net_admin,cap_net_raw+ep /usr/sbin/pppd 2>/dev/null || true
-
-# Проверка прав (по диагностике)
-print_info "Проверка прав pppd:"
-ls -l /usr/sbin/pppd
-getcap /usr/sbin/pppd 2>/dev/null || echo "No capabilities"
-
-print_success "pppd права установлены и проверены"
 
 # ТЕСТ 5: Проверка PPTP конфигурации
 test_step "PPTP config создан" "[ -f /etc/ppp/options.pptp ]" "warning"

@@ -4211,15 +4211,16 @@ async def process_testing_batches(session_id: str, node_ids: list, testing_mode:
                             # Do ping
                             if do_ping:
                                 try:
-                                    from ping_speed_test import test_pptp_chap_auth_proper
-                                    logger.info(f"🔍 CHAP auth testing {node.ip}")
+                                    from ping_speed_test import multiport_tcp_ping
+                                    ports = get_ping_ports_for_node(node)
+                                    logger.info(f"🔍 Ping testing {node.ip} on ports {ports}")
                                     
-                                    ping_result = await test_pptp_chap_auth_proper(node.ip, node.login, node.password, timeout=20.0)
-                                    logger.info(f"🏓 CHAP result for {node.ip}: {ping_result}")
+                                    ping_result = await multiport_tcp_ping(node.ip, ports=ports, timeouts=ping_timeouts)
+                                    logger.info(f"🏓 Ping result for {node.ip}: {ping_result}")
                                     
                                     if ping_result.get('success'):
                                         node.status = "ping_ok"
-                                        logger.info(f"✅ {node.ip} CHAP auth SUCCESS")
+                                        logger.info(f"✅ {node.ip} ping success: {ping_result.get('avg_time', 0)}ms")
                                         
                                         # ОТКЛЮЧЕНО: Автоматическая GEO + Fraud проверка
                                         # Пользователь будет запускать вручную через Testing Modal
