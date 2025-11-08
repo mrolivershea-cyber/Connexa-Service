@@ -531,6 +531,89 @@ async def test_node_speed(ip: str, sample_kb: int = 32, timeout_total: int = 2) 
         "ping": 0.0,
         "message": "Speed test failed - network unreachable or too slow",
     }
+# ==== CHAP АВТОРИЗАЦИЯ (100% проверка логин/пароль) ====
+async def test_real_pptp_chap_auth(ip: str, login: str, password: str, timeout: float = 25.0) -> Dict:
+    """
+    РЕАЛЬНАЯ CHAP авторизация - 100% проверка логин/пароль
+    """
+    import subprocess
+    import os
+    import time
+    import random
+    
+    try:
+        start_time = time.time()
+        
+        # Уникальное имя peer файла
+        peer_name = f"connexa_test_{random.randint(1000, 9999)}"
+        peer_path = f"/etc/ppp/peers/{peer_name}"
+        options_path = f"/tmp/{peer_name}_options.pptp"
+        
+        # Создаем options.pptp
+        options_content = f"""name {login}
+password {password}
+refuse-pap
+refuse-eap
+require-mschap-v2
+require-mppe
+noauth
+nobsdcomp
+nodeflate
+lock
+"""
+        with open(options_path, "w") as f:
+            f.write(options_content)
+        
+        # Создаем peer.conf в /etc/ppp/peers/
+        peer_content = f"""pty "pptp {ip} --nolaunchpppd"
+name {login}
+remotename PPTP
+file {options_path}
+"""
+        with open(peer_path, "w") as f:
+            f.write(peer_content)
+        
+        # Запуск pppd
+        result = subprocess.run(
+            f"timeout {int(timeout)}s /usr/sbin/pppd call {peer_name} nodetach debug 2>&1",
+            shell=True,
+            capture_output=True,
+            text=True
+        )
+        
+        output = result.stdout
+        elapsed = (time.time() - start_time) * 1000
+        
+        # Очистка
+        try:
+            os.remove(options_path)
+            os.remove(peer_path)
+        except:
+            pass
+        
+        # Проверка CHAP
+        if "CHAP authentication succeeded" in output:
+            return {
+                "success": True,
+                "avg_time": elapsed,
+                "message": f"CHAP auth SUCCESS in {elapsed:.0f}ms"
+            }
+        elif "CHAP authentication failed" in output:
+            return {
+                "success": False, 
+                "message": "CHAP authentication failed - wrong credentials"
+            }
+        else:
+            return {
+                "success": False,
+                "message": "PPTP timeout or connection failed"
+            }
+            
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"CHAP test error: {str(e)}"
+        }
 
 async def test_pptp_connection(ip: str, login: str, password: str, skip_ping_check: bool = False) -> Dict:
     """Simulated PPTP connection"""
