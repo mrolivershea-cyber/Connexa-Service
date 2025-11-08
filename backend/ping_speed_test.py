@@ -531,24 +531,25 @@ async def test_node_speed(ip: str, sample_kb: int = 32, timeout_total: int = 2) 
         "ping": 0.0,
         "message": "Speed test failed - network unreachable or too slow",
     }
-# ==== РЕАЛЬНАЯ PPTP CHAP АВТОРИЗАЦИЯ (ТОЧНО по вашему рабочему примеру) ====
+# ==== РЕАЛЬНАЯ PPTP CHAP АВТОРИЗАЦИЯ (ИСПРАВЛЕНО) ====
 async def test_real_pptp_chap_auth(ip: str, login: str, password: str, timeout: float = 25.0) -> Dict:
     """
-    РЕАЛЬНАЯ CHAP авторизация - ТОЧНО как ваш рабочий пример из терминала
+    РЕАЛЬНАЯ CHAP авторизация - ИСПРАВЛЕНО (файлы в /etc/ppp/peers/)
     """
     import subprocess
-    import tempfile
     import os
     import time
+    import random
     
     try:
         start_time = time.time()
         
-        # Создаем временную директорию
-        tmp_dir = "/tmp/pptp_test"
-        os.makedirs(tmp_dir, exist_ok=True)
+        # Уникальное имя peer файла в /etc/ppp/peers/
+        peer_name = f"connexa_test_{random.randint(1000, 9999)}"
+        peer_path = f"/etc/ppp/peers/{peer_name}"
+        options_path = f"/tmp/{peer_name}_options.pptp"
         
-        # Создаем options.pptp ТОЧНО как в вашем примере
+        # Создаем options.pptp в /tmp
         options_content = f"""name {login}
 password {password}
 refuse-pap
@@ -560,21 +561,21 @@ nobsdcomp
 nodeflate
 lock
 """
-        with open(f"{tmp_dir}/options.pptp", "w") as f:
+        with open(options_path, "w") as f:
             f.write(options_content)
         
-        # Создаем peer.conf ТОЧНО как в вашем примере
+        # Создаем peer.conf в /etc/ppp/peers/ (ГДЕ ИЩЕТ pppd!)
         peer_content = f"""pty "pptp {ip} --nolaunchpppd"
 name {login}
 remotename PPTP
-file {tmp_dir}/options.pptp
+file {options_path}
 """
-        with open(f"{tmp_dir}/peer.conf", "w") as f:
+        with open(peer_path, "w") as f:
             f.write(peer_content)
         
-        # ТОЧНО ваша команда: timeout 25s /usr/sbin/pppd call peer.conf nodetach debug
+        # Команда: pppd call peer_name (БЕЗ полного пути!)
         result = subprocess.run(
-            f"timeout 25s /usr/sbin/pppd call {tmp_dir}/peer.conf nodetach debug 2>&1",
+            f"timeout {int(timeout)}s /usr/sbin/pppd call {peer_name} nodetach debug 2>&1",
             shell=True,
             capture_output=True,
             text=True
@@ -585,13 +586,12 @@ file {tmp_dir}/options.pptp
         
         # Очистка
         try:
-            os.remove(f"{tmp_dir}/options.pptp")
-            os.remove(f"{tmp_dir}/peer.conf")
-            os.rmdir(tmp_dir)
+            os.remove(options_path)
+            os.remove(peer_path)
         except:
             pass
         
-        # ТОЧНО ваша интерпретация
+        # Анализ результата (ТОЧНО как в терминале)
         if "CHAP authentication succeeded" in output:
             return {
                 "success": True,
@@ -606,7 +606,7 @@ file {tmp_dir}/options.pptp
         elif not output.strip():
             return {
                 "success": False,
-                "message": "No output - server unavailable or blocked"
+                "message": "No pppd output - possible permission issue"
             }
         else:
             return {
@@ -617,7 +617,8 @@ file {tmp_dir}/options.pptp
     except Exception as e:
         # Очистка при ошибке
         try:
-            subprocess.run("rm -rf /tmp/pptp_test", shell=True, stderr=subprocess.DEVNULL)
+            os.remove(options_path)
+            os.remove(peer_path)
         except:
             pass
         
